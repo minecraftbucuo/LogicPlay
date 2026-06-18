@@ -258,10 +258,11 @@ function MenuBackground() {
         p.x += p.vx
         p.y += p.vy
         p.life++
-        const alpha = 1 - p.life / p.maxLife
+        const alpha = Math.max(0, 1 - p.life / p.maxLife)
+        const particleRadius = Math.max(0.1, p.size * alpha)
         ctx.fillStyle = `rgba(0, 212, 255, ${alpha * 0.5})`
         ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, particleRadius, 0, Math.PI * 2)
         ctx.fill()
       }
     }
