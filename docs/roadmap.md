@@ -43,12 +43,7 @@
 
 **Step 4.1**: ✅ CodeMirror 代码编辑器（语法高亮、行号）
 **Step 4.2**: ✅ 步进执行与动画（逐步回放每条指令）
-**Step 4.3**: 🔲 提示系统（卡关时给提示）
-**Step 4.4**: 🔲 进度保存（localStorage）
 
 ## Phase 5: 内容扩展
 
-**Step 5.1**: 🔲 更多关卡（10+ 关卡覆盖基础算法概念）
-**Step 5.2**: 🔲 更多 API（robot.sense() 感知前方、robot.pick_up() 拾取物品）
-**Step 5.3**: 🔲 教学引导（每关前展示知识点）
-**Step 5.4**: 🔲 循环与条件关卡（for/while/if 教学关卡）
+Phase 5 的详细关卡设计已拆分到 [level-design.md](./level-design.md)，后续每个正式关卡、API 扩展和教学点都在该文件中规划。
