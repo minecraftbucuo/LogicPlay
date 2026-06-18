@@ -9,7 +9,6 @@ import {
   createRuntimeState,
   defaultCheckWin,
   type RobotState,
-  type GameCommand,
   type LevelData,
   type LevelRuntimeState,
 } from '../game/GameEngine'
@@ -36,31 +35,23 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [output, setOutput] = useState('')
   const [robot, setRobot] = useState<RobotState>(level.start)
   const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState())
-  const [pendingCommands, setPendingCommands] = useState<GameCommand[]>([])
-  const [commandIndex, setCommandIndex] = useState(0)
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false)
-  const [executionEnded, setExecutionEnded] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
   const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
   const [hintModalOpen, setHintModalOpen] = useState(false)
   const [solutionModalOpen, setSolutionModalOpen] = useState(false)
   const executingRef = useRef(false)
-  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const runTokenRef = useRef(0)
   const outputRef = useRef<HTMLPreElement | null>(null)
-  const cancelRef = useRef(false)
 
   useEffect(() => {
     const nextBaseLevel = getLevelById(levelId) ?? getFirstLevel()
     const nextLevel = nextBaseLevel.createSessionLevel?.() ?? nextBaseLevel
     setLevel(nextLevel)
-    cancelRef.current = true
+    runTokenRef.current += 1
     executingRef.current = false
-    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-    setIsAutoPlaying(false)
-    setPendingCommands([])
-    setCommandIndex(0)
-    setExecutionEnded(false)
+    setIsExecuting(false)
     setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
     setCode(nextLevel.starterCode ?? '')
@@ -87,117 +78,97 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         setOutput('Pyodide 加载失败，请刷新重试')
         setPyodideLoading(false)
       })
-
-    return () => {
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-    }
   }, [])
 
   const checkWin = (robot: RobotState, runtime: LevelRuntimeState): boolean => {
     return level.checkWin?.(robot, runtime, level) ?? defaultCheckWin(robot, runtime, level)
   }
 
-  const hasPreparedCommands = pendingCommands.length > 0
   const isIntroActive = Boolean(level.intro && !introDismissed)
-  const canStep = hasPreparedCommands && !executionEnded && commandIndex < pendingCommands.length && !isIntroActive
 
-  useEffect(() => {
-    if (!isAutoPlaying || executionEnded || commandIndex >= pendingCommands.length) return
-    autoTimerRef.current = setTimeout(() => {
-      executeNextCommand()
-    }, 420)
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-    return () => {
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-    }
-  }, [isAutoPlaying, executionEnded, commandIndex, pendingCommands.length, robot, runtime])
-
-  const handleRun = async () => {
+  const handleRun = async (mode: 'slow' | 'fast') => {
     if (!pyodideReady || executingRef.current || isIntroActive) return
-    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-    cancelRef.current = false
-    executingRef.current = false
-    setIsAutoPlaying(false)
-    setExecutionEnded(false)
+    const runToken = runTokenRef.current + 1
+    runTokenRef.current = runToken
+    executingRef.current = true
+    setIsExecuting(true)
     setWon(false)
-    setOutput('执行中...')
+    setRobot(level.start)
+    setRuntime(createRuntimeState())
+    setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中...')
 
     const { output: result, commands } = await runPython(code, level)
-    const initialRobot = { ...level.start }
-    const initialRuntime = createRuntimeState()
-    setRobot(initialRobot)
-    setRuntime(initialRuntime)
-    setPendingCommands(commands)
-    setCommandIndex(0)
-    setOutput(`${result || '(无输出)'}\n已生成 ${commands.length} 条指令，可以单步执行或自动执行。`)
-  }
+    if (runTokenRef.current !== runToken) return
 
-  const finishExecution = (message?: string) => {
+    let currentRobot = { ...level.start }
+    const currentRuntime = createRuntimeState()
+    let nextOutput = `${result || '(无输出)'}\n已生成 ${commands.length} 条指令，${mode === 'slow' ? '开始慢速执行。' : '开始快速执行。'}`
+    setOutput(nextOutput)
+
+    for (let index = 0; index < commands.length; index += 1) {
+      if (runTokenRef.current !== runToken) return
+      if (mode === 'slow') await wait(420)
+      if (runTokenRef.current !== runToken) return
+
+      const command = commands[index]
+      const commandResult = applyCommand(currentRobot, command, level, currentRuntime)
+      nextOutput += `\n▶ 第 ${index + 1} 步：${command}`
+
+      if (commandResult.collision) {
+        setRobot(currentRobot)
+        setRuntime(currentRuntime)
+        setOutput(`${nextOutput}\n💥 撞墙了！机器人无法移动。`)
+        setIsExecuting(false)
+        executingRef.current = false
+        return
+      }
+
+      currentRobot = { ...commandResult.robot }
+      setRobot(currentRobot)
+      setRuntime({
+        collected: new Set(currentRuntime.collected),
+        activatedSwitches: new Set(currentRuntime.activatedSwitches),
+        openedDoors: new Set(currentRuntime.openedDoors),
+      })
+
+      if (commandResult.collectedItemId) {
+        nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}`
+      }
+      if (commandResult.activatedSwitchId) {
+        nextOutput += `\n🔘 激活开关：${commandResult.activatedSwitchId}`
+      }
+      if (commandResult.teleported) {
+        nextOutput += '\n🌀 触发传送。'
+      }
+
+      setOutput(nextOutput)
+
+      if (checkWin(currentRobot, currentRuntime)) {
+        const updatedProgress = completeLevel(level.id)
+        setProgress(updatedProgress)
+        setWon(true)
+        setOutput(`${nextOutput}\n🎉 恭喜通关！`)
+        setIsExecuting(false)
+        executingRef.current = false
+        return
+      }
+    }
+
+    setRobot(currentRobot)
+    setRuntime(currentRuntime)
+    setOutput(`${nextOutput}\n指令执行完毕，但还没有通关。`)
+    setIsExecuting(false)
     executingRef.current = false
-    setIsAutoPlaying(false)
-    setExecutionEnded(true)
-    if (message) setOutput(prev => `${prev}\n${message}`)
-  }
-
-  const executeNextCommand = () => {
-    if (executingRef.current || executionEnded || commandIndex >= pendingCommands.length) return
-
-    const cmd = pendingCommands[commandIndex]
-    executingRef.current = true
-    const result = applyCommand(robot, cmd, level, runtime)
-    const nextStep = commandIndex + 1
-    setCommandIndex(nextStep)
-    setOutput(prev => `${prev}\n▶ 第 ${nextStep} 步：${cmd}`)
-
-    if (result.collision) {
-      finishExecution('💥 撞墙了！机器人无法移动。')
-      return
-    }
-
-    const nextRuntime = {
-      collected: new Set(runtime.collected),
-      activatedSwitches: new Set(runtime.activatedSwitches),
-      openedDoors: new Set(runtime.openedDoors),
-    }
-
-    setRobot({ ...result.robot })
-    setRuntime(nextRuntime)
-
-    if (result.collectedItemId) {
-      setOutput(prev => prev + `\n⭐ 收集到物品：${result.collectedItemId}`)
-    }
-    if (result.activatedSwitchId) {
-      setOutput(prev => prev + `\n🔘 激活开关：${result.activatedSwitchId}`)
-    }
-    if (result.teleported) {
-      setOutput(prev => prev + '\n🌀 触发传送。')
-    }
-
-    if (checkWin(result.robot, nextRuntime)) {
-      const updatedProgress = completeLevel(level.id)
-      setProgress(updatedProgress)
-      setWon(true)
-      finishExecution('🎉 恭喜通关！')
-      return
-    }
-
-    executingRef.current = false
-    if (nextStep >= pendingCommands.length) {
-      finishExecution('指令执行完毕，但还没有通关。')
-    }
   }
 
   const handleReset = () => {
     const nextBaseLevel = getLevelById(levelId) ?? getFirstLevel()
     const nextLevel = nextBaseLevel.createSessionLevel?.() ?? nextBaseLevel
     setLevel(nextLevel)
-    cancelRef.current = true
+    runTokenRef.current += 1
     executingRef.current = false
-    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
-    setIsAutoPlaying(false)
-    setPendingCommands([])
-    setCommandIndex(0)
-    setExecutionEnded(false)
     setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
     setCode(nextLevel.starterCode ?? '')
@@ -217,7 +188,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     if (!level.solutionCode) return
     setCode(level.solutionCode)
     setSolutionModalOpen(false)
-    setOutput('已将标准答案复制到编辑器。你可以直接生成指令，也可以先阅读后再自己改写。')
+    setOutput('已将标准答案复制到编辑器。你可以直接执行，也可以先阅读后再自己改写。')
   }
 
   return (
@@ -264,14 +235,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             onChange={(value) => setCode(value)}
           />
           <div className="action-row step-action-row">
-            <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady || isIntroActive}>
-              {pyodideLoading ? '加载中...' : '生成指令'}
+            <button className="run-btn primary-btn" onClick={() => handleRun('slow')} disabled={!pyodideReady || isIntroActive || isExecuting}>
+              {pyodideLoading ? '加载中...' : '执行'}
             </button>
-            <button className="run-btn secondary-btn" onClick={executeNextCommand} disabled={!canStep || isAutoPlaying}>
-              下一步 {hasPreparedCommands ? `${commandIndex}/${pendingCommands.length}` : ''}
-            </button>
-            <button className="run-btn secondary-btn" onClick={() => setIsAutoPlaying(prev => !prev)} disabled={!canStep}>
-              {isAutoPlaying ? '暂停执行' : '自动执行'}
+            <button className="run-btn secondary-btn" onClick={() => handleRun('fast')} disabled={!pyodideReady || isIntroActive || isExecuting}>
+              快速执行
             </button>
             <button className="run-btn secondary-btn" onClick={handleReset}>
               重置关卡
