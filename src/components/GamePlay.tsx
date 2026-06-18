@@ -10,7 +10,7 @@ import {
   type LevelData,
   type LevelRuntimeState,
 } from '../game/GameEngine'
-import { getFirstLevel, getLevelById, getNextLevel } from '../game/LevelRegistry'
+import { LEVELS, getFirstLevel, getLevelById, getLevelIndex, getNextLevel } from '../game/LevelRegistry'
 import { completeLevel } from '../game/ProgressStore'
 
 interface GamePlayProps {
@@ -21,6 +21,8 @@ interface GamePlayProps {
 
 function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps) {
   const level: LevelData = getLevelById(levelId) ?? getFirstLevel()
+  const levelIndex = getLevelIndex(level.id)
+  const levelNumber = levelIndex >= 0 ? levelIndex + 1 : 1
   const nextLevel = getNextLevel(level.id)
   const [code, setCode] = useState(level.starterCode ?? '')
   const [pyodideReady, setPyodideReady] = useState(false)
@@ -146,10 +148,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           ← 返回关卡选择
         </button>
         <div className="level-title-block">
-          <div className="level-kicker">CURRENT LEVEL</div>
-          <h1>LogicPlay</h1>
-          <div className="level-subtitle">{level.name}：{level.description}</div>
+          <div className="level-kicker">LEVEL {String(levelNumber).padStart(2, '0')} / {String(LEVELS.length).padStart(2, '0')}</div>
+          <h1>{level.name}</h1>
+          <div className="level-subtitle">{level.description}</div>
         </div>
+        <div className="level-header-slot" />
       </div>
       <div className="game-layout">
         <div className="editor-panel game-card">
