@@ -333,6 +333,10 @@
   gap: 10px;
 }
 
+.step-action-row {
+  grid-template-columns: 1fr 1fr;
+}
+
 .run-btn {
   padding: 11px 18px;
   border: none;
@@ -369,6 +373,9 @@
 
 .output-area {
   width: 100%;
+  flex: 0 0 132px;
+  min-height: 132px;
+  overflow: hidden;
 }
 
 .output-label {
@@ -379,6 +386,8 @@
 }
 
 .output-content {
+  height: 104px;
+  box-sizing: border-box;
   background: rgba(4, 9, 20, 0.92);
   border: 1px solid rgba(46, 204, 113, 0.18);
   border-radius: 12px;
@@ -386,8 +395,6 @@
   font-family: Consolas, monospace;
   font-size: 13px;
   color: #a0e9af;
-  min-height: 92px;
-  max-height: 130px;
   overflow-y: auto;
   margin: 0;
   white-space: pre-wrap;

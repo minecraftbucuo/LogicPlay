@@ -35,20 +35,37 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [output, setOutput] = useState('')
   const [robot, setRobot] = useState<RobotState>(level.start)
   const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState())
+  const [pendingCommands, setPendingCommands] = useState<GameCommand[]>([])
+  const [commandIndex, setCommandIndex] = useState(0)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false)
+  const [executionEnded, setExecutionEnded] = useState(false)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
   const executingRef = useRef(false)
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const outputRef = useRef<HTMLPreElement | null>(null)
   const cancelRef = useRef(false)
 
   useEffect(() => {
     cancelRef.current = true
     executingRef.current = false
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+    setIsAutoPlaying(false)
+    setPendingCommands([])
+    setCommandIndex(0)
+    setExecutionEnded(false)
     setRobot(level.start)
     setRuntime(createRuntimeState())
     setCode(level.starterCode ?? '')
     setOutput('')
     setWon(false)
   }, [levelId])
+
+  useEffect(() => {
+    const outputElement = outputRef.current
+    if (!outputElement) return
+    outputElement.scrollTop = outputElement.scrollHeight
+  }, [output])
 
   useEffect(() => {
     loadPyodide()
@@ -60,87 +77,113 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         setOutput('Pyodide 加载失败，请刷新重试')
         setPyodideLoading(false)
       })
+
+    return () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+    }
   }, [])
 
   const checkWin = (robot: RobotState, runtime: LevelRuntimeState): boolean => {
     return level.checkWin?.(robot, runtime, level) ?? defaultCheckWin(robot, runtime, level)
   }
 
+  const hasPreparedCommands = pendingCommands.length > 0
+  const canStep = hasPreparedCommands && !executionEnded && commandIndex < pendingCommands.length
+
+  useEffect(() => {
+    if (!isAutoPlaying || executionEnded || commandIndex >= pendingCommands.length) return
+    autoTimerRef.current = setTimeout(() => {
+      executeNextCommand()
+    }, 420)
+
+    return () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+    }
+  }, [isAutoPlaying, executionEnded, commandIndex, pendingCommands.length, robot, runtime])
+
   const handleRun = async () => {
     if (!pyodideReady || executingRef.current) return
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+    cancelRef.current = false
+    executingRef.current = false
+    setIsAutoPlaying(false)
+    setExecutionEnded(false)
     setWon(false)
     setOutput('执行中...')
 
     const { output: result, commands } = await runPython(code)
-    setOutput(result || '(无输出)')
-
-    if (commands.length > 0) {
-      executeCommands(commands)
-    }
+    const initialRobot = { ...level.start }
+    const initialRuntime = createRuntimeState()
+    setRobot(initialRobot)
+    setRuntime(initialRuntime)
+    setPendingCommands(commands)
+    setCommandIndex(0)
+    setOutput(`${result || '(无输出)'}\n已生成 ${commands.length} 条指令，可以单步执行或自动执行。`)
   }
 
-  const executeCommands = (commands: GameCommand[]) => {
-    let currentRobot = { ...level.start }
-    let currentRuntime = createRuntimeState()
-    let stopped = false
+  const finishExecution = (message?: string) => {
+    executingRef.current = false
+    setIsAutoPlaying(false)
+    setExecutionEnded(true)
+    if (message) setOutput(prev => `${prev}\n${message}`)
+  }
+
+  const executeNextCommand = () => {
+    if (executingRef.current || executionEnded || commandIndex >= pendingCommands.length) return
+
+    const cmd = pendingCommands[commandIndex]
     executingRef.current = true
-    cancelRef.current = false
-    setRobot(currentRobot)
-    setRuntime(currentRuntime)
+    const result = applyCommand(robot, cmd, level, runtime)
+    const nextStep = commandIndex + 1
+    setCommandIndex(nextStep)
+    setOutput(prev => `${prev}\n▶ 第 ${nextStep} 步：${cmd}`)
 
-    commands.forEach((cmd, index) => {
-      setTimeout(() => {
-        if (stopped || cancelRef.current) {
-          executingRef.current = false
-          return
-        }
+    if (result.collision) {
+      finishExecution('💥 撞墙了！机器人无法移动。')
+      return
+    }
 
-        const result = applyCommand(currentRobot, cmd, level, currentRuntime)
-        if (result.collision) {
-          stopped = true
-          executingRef.current = false
-          setOutput(prev => prev + '\n💥 撞墙了！机器人无法移动。')
-          return
-        }
+    const nextRuntime = {
+      collected: new Set(runtime.collected),
+      activatedSwitches: new Set(runtime.activatedSwitches),
+      openedDoors: new Set(runtime.openedDoors),
+    }
 
-        currentRobot = result.robot
-        currentRuntime = {
-          collected: new Set(currentRuntime.collected),
-          activatedSwitches: new Set(currentRuntime.activatedSwitches),
-          openedDoors: new Set(currentRuntime.openedDoors),
-        }
-        setRobot({ ...currentRobot })
-        setRuntime(currentRuntime)
+    setRobot({ ...result.robot })
+    setRuntime(nextRuntime)
 
-        if (result.collectedItemId) {
-          setOutput(prev => prev + `\n⭐ 收集到物品：${result.collectedItemId}`)
-        }
-        if (result.activatedSwitchId) {
-          setOutput(prev => prev + `\n🔘 激活开关：${result.activatedSwitchId}`)
-        }
-        if (result.teleported) {
-          setOutput(prev => prev + '\n🌀 触发传送。')
-        }
+    if (result.collectedItemId) {
+      setOutput(prev => prev + `\n⭐ 收集到物品：${result.collectedItemId}`)
+    }
+    if (result.activatedSwitchId) {
+      setOutput(prev => prev + `\n🔘 激活开关：${result.activatedSwitchId}`)
+    }
+    if (result.teleported) {
+      setOutput(prev => prev + '\n🌀 触发传送。')
+    }
 
-        if (checkWin(currentRobot, currentRuntime)) {
-          stopped = true
-          executingRef.current = false
-          const updatedProgress = completeLevel(level.id)
-          setProgress(updatedProgress)
-          setWon(true)
-          setOutput(prev => prev + '\n🎉 恭喜通关！')
-        }
+    if (checkWin(result.robot, nextRuntime)) {
+      const updatedProgress = completeLevel(level.id)
+      setProgress(updatedProgress)
+      setWon(true)
+      finishExecution('🎉 恭喜通关！')
+      return
+    }
 
-        if (index === commands.length - 1) {
-          executingRef.current = false
-        }
-      }, (index + 1) * 300)
-    })
+    executingRef.current = false
+    if (nextStep >= pendingCommands.length) {
+      finishExecution('指令执行完毕，但还没有通关。')
+    }
   }
 
   const handleReset = () => {
     cancelRef.current = true
     executingRef.current = false
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
+    setIsAutoPlaying(false)
+    setPendingCommands([])
+    setCommandIndex(0)
+    setExecutionEnded(false)
     setRobot(level.start)
     setRuntime(createRuntimeState())
     setCode(level.starterCode ?? '')
@@ -190,9 +233,15 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             }}
             onChange={(value) => setCode(value)}
           />
-          <div className="action-row">
+          <div className="action-row step-action-row">
             <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady}>
-              {pyodideLoading ? '加载中...' : '运行代码'}
+              {pyodideLoading ? '加载中...' : '生成指令'}
+            </button>
+            <button className="run-btn secondary-btn" onClick={executeNextCommand} disabled={!canStep || isAutoPlaying}>
+              下一步 {hasPreparedCommands ? `${commandIndex}/${pendingCommands.length}` : ''}
+            </button>
+            <button className="run-btn secondary-btn" onClick={() => setIsAutoPlaying(prev => !prev)} disabled={!canStep}>
+              {isAutoPlaying ? '暂停执行' : '自动执行'}
             </button>
             <button className="run-btn secondary-btn" onClick={handleReset}>
               重置关卡
@@ -200,7 +249,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           </div>
           <div className="output-area">
             <div className="output-label">输出：</div>
-            <pre className="output-content">{output}</pre>
+            <pre ref={outputRef} className="output-content">{output}</pre>
           </div>
         </div>
         <div className="canvas-panel game-card">
