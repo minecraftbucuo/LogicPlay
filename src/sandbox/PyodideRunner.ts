@@ -1,5 +1,7 @@
 // Pyodide 沙箱执行器：在浏览器中运行 Python 代码
 
+import { robotMoveForward, robotTurnLeft, robotTurnRight, drainCommands, type GameCommand } from '../game/GameEngine'
+
 interface PyodideInterface {
   runPythonAsync: (code: string) => Promise<unknown>
   globals: {
@@ -9,6 +11,7 @@ interface PyodideInterface {
 
 let pyodide: PyodideInterface | null = null
 let loadingPromise: Promise<void> | null = null
+let apiInjected = false
 
 // 加载 Pyodide 运行时（从本地 public 目录加载）
 export async function loadPyodide(): Promise<void> {
@@ -16,9 +19,7 @@ export async function loadPyodide(): Promise<void> {
   if (loadingPromise) return loadingPromise
 
   loadingPromise = (async () => {
-    // 动态加载 pyodide.js 脚本
     await new Promise<void>((resolve, reject) => {
-      // 如果已经加载过就跳过
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((window as any).loadPyodide) {
         resolve()
@@ -41,12 +42,40 @@ export async function loadPyodide(): Promise<void> {
   return loadingPromise
 }
 
-// 执行 Python 代码，返回输出结果
-export async function runPython(code: string): Promise<string> {
+// 注入 robot API 到 Pyodide 环境
+async function ensureApiInjected(): Promise<void> {
+  if (apiInjected) return
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any
+  win._robotMoveForward = robotMoveForward
+  win._robotTurnLeft = robotTurnLeft
+  win._robotTurnRight = robotTurnRight
+
+  await pyodide!.runPythonAsync(`
+from js import _robotMoveForward, _robotTurnLeft, _robotTurnRight
+
+class Robot:
+    def move_forward(self):
+        _robotMoveForward()
+    def turn_left(self):
+        _robotTurnLeft()
+    def turn_right(self):
+        _robotTurnRight()
+
+robot = Robot()
+`)
+
+  apiInjected = true
+}
+
+// 执行 Python 代码，返回 { output, commands }
+export async function runPython(code: string): Promise<{ output: string; commands: GameCommand[] }> {
   if (!pyodide) throw new Error('Pyodide 未加载')
 
+  await ensureApiInjected()
+
   try {
-    // 用 exec 执行用户代码，重定向 stdout 捕获 print 输出
     const wrappedCode = `
 import sys
 from io import StringIO
@@ -62,23 +91,10 @@ sys.stdout = _capture_stdout
 _capture_output + ('错误: ' + _exec_error if _exec_error else '')
 `
     const result = await pyodide.runPythonAsync(wrappedCode)
-    return String(result)
+    const commands = drainCommands()
+    return { output: String(result), commands }
   } catch (error) {
-    return `错误: ${error}`
+    const commands = drainCommands()
+    return { output: `错误: ${error}`, commands }
   }
-}
-
-// 在 Pyodide 中注入游戏 API（后续步骤扩展）
-export async function injectGameApi(apiObject: Record<string, (...args: unknown[]) => void>): Promise<void> {
-  if (!pyodide) throw new Error('Pyodide 未加载')
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const win = window as any
-  for (const [name, fn] of Object.entries(apiObject)) {
-    win[name] = fn
-  }
-
-  await pyodide.runPythonAsync(`
-from js import ${Object.keys(apiObject).join(', ')}
-`)
 }
