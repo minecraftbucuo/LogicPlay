@@ -177,7 +177,12 @@ function GameCanvas({
       ref={canvasRef}
       width={canvasSize}
       height={canvasSize}
-      style={{ border: '2px solid #0f3460', borderRadius: '4px' }}
+      style={{
+        width: 'min(100%, 540px)',
+        height: 'auto',
+        border: '2px solid #0f3460',
+        borderRadius: '4px',
+      }}
     />
   )
 }
