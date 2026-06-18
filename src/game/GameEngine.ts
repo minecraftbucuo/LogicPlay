@@ -18,31 +18,94 @@ export interface RobotState {
 
 export type GameCommand = 'move_forward' | 'turn_left' | 'turn_right'
 
-// 关卡数据
+// ====== 关卡数据结构（灵活可扩展）======
+
+// 格子坐标
+export interface Cell {
+  x: number
+  y: number
+}
+
+// 收集品
+export interface Collectible {
+  id: string
+  x: number
+  y: number
+  type?: string  // 后续可扩展不同类型（金币、钥匙等）
+}
+
+// 开关
+export interface Switch {
+  id: string
+  x: number
+  y: number
+  targetDoorId: string  // 控制的门
+}
+
+// 门（被开关控制）
+export interface Door {
+  id: string
+  x: number
+  y: number
+  open: boolean  // 初始是否打开
+}
+
+// 传送点
+export interface Teleporter {
+  id: string
+  x: number
+  y: number
+  pairId: string  // 配对的传送点 id
+}
+
+// 关卡运行时状态（执行过程中会变化的状态）
+export interface LevelRuntimeState {
+  collected: Set<string>        // 已收集的物品 id
+  activatedSwitches: Set<string> // 已激活的开关 id
+  openedDoors: Set<string>      // 已打开的门 id
+}
+
+// 关卡数据：只有 id、name、gridSize、start 是必需的，其他全部可选
 export interface LevelData {
+  id: string
+  name: string
+  description?: string
   gridSize: number
   start: RobotState
-  target: { x: number; y: number }
-  walls: { x: number; y: number }[]  // 障碍物位置
+  // 以下全部可选，由关卡设计者按需使用
+  target?: Cell                    // 终点
+  walls?: Cell[]                   // 障碍物
+  collectibles?: Collectible[]     // 收集品
+  switches?: Switch[]              // 开关
+  doors?: Door[]                   // 门
+  teleporters?: Teleporter[]       // 传送点
+  // 通关条件：由关卡自定义。不提供则默认"到达终点"
+  checkWin?: (robot: RobotState, runtime: LevelRuntimeState, level: LevelData) => boolean
+  // 初始代码模板（可选，给玩家提示）
+  starterCode?: string
 }
 
-// 默认关卡：中间有堵墙，需要绕路
-export const DEFAULT_LEVEL: LevelData = {
-  gridSize: 5,
-  start: { x: 0, y: 2, direction: 'right' },
-  target: { x: 4, y: 2 },
-  walls: [
-    { x: 2, y: 1 },
-    { x: 2, y: 2 },
-    { x: 2, y: 3 },
-  ],
+// 默认运行时状态
+export function createRuntimeState(): LevelRuntimeState {
+  return {
+    collected: new Set(),
+    activatedSwitches: new Set(),
+    openedDoors: new Set(),
+  }
 }
 
-// 网格配置
-export const GRID_SIZE = 5
-export const CELL_SIZE = 60
+// 网格配置（默认值，关卡可覆盖）
+export const DEFAULT_GRID_SIZE = 5
+export const DEFAULT_CELL_SIZE = 60
+
+export function getCanvasSize(level: LevelData): number {
+  return level.gridSize * DEFAULT_CELL_SIZE
+}
+
+// 兼容旧代码的导出
+export const GRID_SIZE = DEFAULT_GRID_SIZE
+export const CELL_SIZE = DEFAULT_CELL_SIZE
 export const CANVAS_SIZE = GRID_SIZE * CELL_SIZE
-
 export const INITIAL_ROBOT: RobotState = { x: 0, y: 2, direction: 'right' }
 
 export { DIRECTIONS, DIR_ANGLE }
@@ -77,10 +140,20 @@ export function robotTurnRight() {
 export interface CommandResult {
   robot: RobotState
   collision: boolean  // 是否撞墙
+  collectedItemId?: string  // 收集到的物品 id
+  activatedSwitchId?: string  // 激活的开关 id
+  teleported?: boolean  // 是否触发了传送
 }
 
 // 根据指令计算新的机器人状态，返回结果包含碰撞标记
-export function applyCommand(robot: RobotState, cmd: GameCommand, level?: LevelData): CommandResult {
+export function applyCommand(
+  robot: RobotState,
+  cmd: GameCommand,
+  level: LevelData,
+  runtime?: LevelRuntimeState
+): CommandResult {
+  const rt = runtime ?? createRuntimeState()
+
   switch (cmd) {
     case 'move_forward': {
       const dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
@@ -89,16 +162,49 @@ export function applyCommand(robot: RobotState, cmd: GameCommand, level?: LevelD
       const newY = robot.y + dy
 
       // 碰撞检测：超出网格边界
-      if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) {
+      if (newX < 0 || newX >= level.gridSize || newY < 0 || newY >= level.gridSize) {
         return { robot, collision: true }
       }
 
       // 碰撞检测：撞到障碍物
-      if (level?.walls.some(w => w.x === newX && w.y === newY)) {
+      if (level.walls?.some(w => w.x === newX && w.y === newY)) {
         return { robot, collision: true }
       }
 
-      return { robot: { ...robot, x: newX, y: newY }, collision: false }
+      // 碰撞检测：撞到关闭的门
+      if (level.doors?.some(d => d.x === newX && d.y === newY && !rt.openedDoors.has(d.id))) {
+        return { robot, collision: true }
+      }
+
+      const result: CommandResult = { robot: { ...robot, x: newX, y: newY }, collision: false }
+
+      // 检查是否踩到收集品
+      const collectible = level.collectibles?.find(c => c.x === newX && c.y === newY && !rt.collected.has(c.id))
+      if (collectible) {
+        rt.collected.add(collectible.id)
+        result.collectedItemId = collectible.id
+      }
+
+      // 检查是否踩到开关
+      const sw = level.switches?.find(s => s.x === newX && s.y === newY && !rt.activatedSwitches.has(s.id))
+      if (sw) {
+        rt.activatedSwitches.add(sw.id)
+        // 打开对应的门
+        rt.openedDoors.add(sw.targetDoorId)
+        result.activatedSwitchId = sw.id
+      }
+
+      // 检查是否踩到传送点
+      const teleporter = level.teleporters?.find(t => t.x === newX && t.y === newY)
+      if (teleporter) {
+        const pair = level.teleporters?.find(t => t.id === teleporter.pairId)
+        if (pair) {
+          result.robot = { ...result.robot, x: pair.x, y: pair.y }
+          result.teleported = true
+        }
+      }
+
+      return result
     }
     case 'turn_left': {
       const idx = DIRECTIONS.indexOf(robot.direction)
@@ -109,4 +215,10 @@ export function applyCommand(robot: RobotState, cmd: GameCommand, level?: LevelD
       return { robot: { ...robot, direction: DIRECTIONS[(idx + 1) % 4] }, collision: false }
     }
   }
+}
+
+// 默认通关条件：到达终点
+export function defaultCheckWin(robot: RobotState, _runtime: LevelRuntimeState, level: LevelData): boolean {
+  if (!level.target) return false
+  return robot.x === level.target.x && robot.y === level.target.y
 }
