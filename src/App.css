@@ -284,7 +284,36 @@
   transform: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1120px) {
+  .level-header,
+  .game-layout {
+    width: min(960px, 100%);
+  }
+
+  .level-header {
+    grid-template-columns: 190px 1fr 190px;
+  }
+
+  .game-layout {
+    grid-template-columns: 360px 560px;
+  }
+
+  .editor-panel {
+    min-height: 580px;
+  }
+
+  .canvas-panel {
+    width: 560px;
+    height: 580px;
+  }
+
+  .canvas-panel canvas {
+    width: 500px;
+    height: 500px;
+  }
+}
+
+@media (max-width: 960px) {
   .game-page {
     padding: 18px;
   }
@@ -316,7 +345,7 @@
   }
 
   .canvas-panel {
-    width: min(420px, 100%);
+    width: min(600px, 100%);
     height: auto;
     aspect-ratio: auto;
     justify-self: center;
@@ -328,5 +357,33 @@
 
   .canvas-panel canvas {
     transform: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .game-page {
+    padding: 12px;
+  }
+
+  .app h1 {
+    font-size: 24px;
+  }
+
+  .level-subtitle {
+    font-size: 13px;
+  }
+
+  .editor-panel,
+  .canvas-panel {
+    padding: 16px;
+  }
+
+  .action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-panel canvas {
+    width: min(100%, 420px);
+    height: auto;
   }
 }
