@@ -140,41 +140,32 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   }
 
   return (
-    <div className="app">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-        <button
-          onClick={onBackToLevelSelect}
-          style={{
-            background: 'none',
-            border: '1px solid #555',
-            color: '#888',
-            padding: '4px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
+    <div className="app game-page">
+      <div className="level-header">
+        <button className="level-back-btn" onClick={onBackToLevelSelect}>
           ← 返回关卡选择
         </button>
-        <div>
-          <h1 style={{ margin: 0 }}>LogicPlay</h1>
-          <div style={{ color: '#888', fontSize: '14px' }}>{level.name}：{level.description}</div>
+        <div className="level-title-block">
+          <div className="level-kicker">CURRENT LEVEL</div>
+          <h1>LogicPlay</h1>
+          <div className="level-subtitle">{level.name}：{level.description}</div>
         </div>
       </div>
       <div className="game-layout">
-        <div className="editor-panel">
+        <div className="editor-panel game-card">
+          <div className="panel-title">代码控制台</div>
           <textarea
             className="code-input"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
           />
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="run-btn" onClick={handleRun} disabled={!pyodideReady}>
-              {pyodideLoading ? '加载中...' : '运行'}
+          <div className="action-row">
+            <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady}>
+              {pyodideLoading ? '加载中...' : '运行代码'}
             </button>
-            <button className="run-btn" onClick={handleReset} style={{ background: '#555' }}>
-              重置
+            <button className="run-btn secondary-btn" onClick={handleReset}>
+              重置关卡
             </button>
           </div>
           <div className="output-area">
@@ -183,7 +174,10 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           </div>
 
         </div>
-        <GameCanvas robot={robot} level={level} runtime={runtime} />
+        <div className="canvas-panel game-card">
+          <div className="panel-title">运行地图</div>
+          <GameCanvas robot={robot} level={level} runtime={runtime} />
+        </div>
       </div>
 
       {won && (

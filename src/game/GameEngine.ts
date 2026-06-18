@@ -96,7 +96,7 @@ export function createRuntimeState(): LevelRuntimeState {
 
 // 网格配置（默认值，关卡可覆盖）
 export const DEFAULT_GRID_SIZE = 5
-export const DEFAULT_CELL_SIZE = 60
+export const DEFAULT_CELL_SIZE = 108
 
 export function getCanvasSize(level: LevelData): number {
   return level.gridSize * DEFAULT_CELL_SIZE
