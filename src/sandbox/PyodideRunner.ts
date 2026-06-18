@@ -1,6 +1,15 @@
 // Pyodide 沙箱执行器：在浏览器中运行 Python 代码
 
-import { robotMoveForward, robotTurnLeft, robotTurnRight, drainCommands, type GameCommand } from '../game/GameEngine'
+import {
+  robotMoveForward,
+  robotTurnLeft,
+  robotTurnRight,
+  robotSense,
+  startPlanning,
+  drainCommands,
+  type GameCommand,
+  type LevelData,
+} from '../game/GameEngine'
 
 interface PyodideInterface {
   runPythonAsync: (code: string) => Promise<unknown>
@@ -51,9 +60,10 @@ async function ensureApiInjected(): Promise<void> {
   win._robotMoveForward = robotMoveForward
   win._robotTurnLeft = robotTurnLeft
   win._robotTurnRight = robotTurnRight
+  win._robotSense = robotSense
 
   await pyodide!.runPythonAsync(`
-from js import _robotMoveForward, _robotTurnLeft, _robotTurnRight
+from js import _robotMoveForward, _robotTurnLeft, _robotTurnRight, _robotSense
 
 class Robot:
     def move_forward(self):
@@ -62,6 +72,8 @@ class Robot:
         _robotTurnLeft()
     def turn_right(self):
         _robotTurnRight()
+    def sense(self):
+        return _robotSense()
 
 robot = Robot()
 `)
@@ -70,10 +82,11 @@ robot = Robot()
 }
 
 // 执行 Python 代码，返回 { output, commands }
-export async function runPython(code: string): Promise<{ output: string; commands: GameCommand[] }> {
+export async function runPython(code: string, level: LevelData): Promise<{ output: string; commands: GameCommand[] }> {
   if (!pyodide) throw new Error('Pyodide 未加载')
 
   await ensureApiInjected()
+  startPlanning(level)
 
   try {
     const wrappedCode = `

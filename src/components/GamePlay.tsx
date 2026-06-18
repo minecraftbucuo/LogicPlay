@@ -23,7 +23,8 @@ interface GamePlayProps {
 }
 
 function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps) {
-  const level: LevelData = getLevelById(levelId) ?? getFirstLevel()
+  const baseLevel: LevelData = getLevelById(levelId) ?? getFirstLevel()
+  const [level, setLevel] = useState<LevelData>(() => baseLevel.createSessionLevel?.() ?? baseLevel)
   const levelIndex = getLevelIndex(level.id)
   const levelNumber = levelIndex >= 0 ? levelIndex + 1 : 1
   const nextLevel = getNextLevel(level.id)
@@ -48,6 +49,9 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const cancelRef = useRef(false)
 
   useEffect(() => {
+    const nextBaseLevel = getLevelById(levelId) ?? getFirstLevel()
+    const nextLevel = nextBaseLevel.createSessionLevel?.() ?? nextBaseLevel
+    setLevel(nextLevel)
     cancelRef.current = true
     executingRef.current = false
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
@@ -55,11 +59,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setPendingCommands([])
     setCommandIndex(0)
     setExecutionEnded(false)
-    setRobot(level.start)
+    setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
-    setCode(level.starterCode ?? '')
+    setCode(nextLevel.starterCode ?? '')
     setOutput('')
-    setIntroDismissed(!level.intro)
+    setIntroDismissed(!nextLevel.intro)
     setWon(false)
   }, [levelId])
 
@@ -114,7 +118,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setWon(false)
     setOutput('执行中...')
 
-    const { output: result, commands } = await runPython(code)
+    const { output: result, commands } = await runPython(code, level)
     const initialRobot = { ...level.start }
     const initialRuntime = createRuntimeState()
     setRobot(initialRobot)
@@ -180,6 +184,9 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   }
 
   const handleReset = () => {
+    const nextBaseLevel = getLevelById(levelId) ?? getFirstLevel()
+    const nextLevel = nextBaseLevel.createSessionLevel?.() ?? nextBaseLevel
+    setLevel(nextLevel)
     cancelRef.current = true
     executingRef.current = false
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
@@ -187,10 +194,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setPendingCommands([])
     setCommandIndex(0)
     setExecutionEnded(false)
-    setRobot(level.start)
+    setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
-    setCode(level.starterCode ?? '')
+    setCode(nextLevel.starterCode ?? '')
     setOutput('')
+    setIntroDismissed(!nextLevel.intro)
     setWon(false)
   }
 

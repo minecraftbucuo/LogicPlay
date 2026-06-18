@@ -17,6 +17,7 @@ export interface RobotState {
 }
 
 export type GameCommand = 'move_forward' | 'turn_left' | 'turn_right'
+export type SenseResult = 'wall' | 'empty' | 'target' | 'collectible' | 'switch' | 'door' | 'teleporter'
 
 // ====== 关卡数据结构（灵活可扩展）======
 
@@ -58,6 +59,11 @@ export interface Teleporter {
   pairId: string  // 配对的传送点 id
 }
 
+export interface MysteryCell {
+  x: number
+  y: number
+}
+
 // 关卡运行时状态（执行过程中会变化的状态）
 export interface LevelRuntimeState {
   collected: Set<string>        // 已收集的物品 id
@@ -84,6 +90,9 @@ export interface LevelData {
   switches?: Switch[]              // 开关
   doors?: Door[]                   // 门
   teleporters?: Teleporter[]       // 传送点
+  mysteryCells?: MysteryCell[]     // 神秘方块，实际可能是墙或空气
+  // 每次进入关卡时生成本局关卡数据，可用于随机地图
+  createSessionLevel?: () => LevelData
   // 通关条件：由关卡自定义。不提供则默认"到达终点"
   checkWin?: (robot: RobotState, runtime: LevelRuntimeState, level: LevelData) => boolean
   // 初始代码模板（可选，给玩家提示）
@@ -118,6 +127,29 @@ export type { Direction }
 
 // 全局指令队列，Python 调用 API 时往里推指令
 let commandQueue: GameCommand[] = []
+let planningRobot: RobotState = { ...INITIAL_ROBOT }
+let planningLevel: LevelData | null = null
+
+export function startPlanning(level: LevelData) {
+  commandQueue = []
+  planningRobot = { ...level.start }
+  planningLevel = level
+}
+
+function getForwardCell(robot: RobotState): Cell {
+  const dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
+  const dy = robot.direction === 'down' ? 1 : robot.direction === 'up' ? -1 : 0
+  return { x: robot.x + dx, y: robot.y + dy }
+}
+
+function rotateDirection(direction: Direction, turn: 'left' | 'right'): Direction {
+  const idx = DIRECTIONS.indexOf(direction)
+  return turn === 'left' ? DIRECTIONS[(idx + 3) % 4] : DIRECTIONS[(idx + 1) % 4]
+}
+
+function isSameCell(cell: Cell | undefined, x: number, y: number): boolean {
+  return Boolean(cell && cell.x === x && cell.y === y)
+}
 
 // 获取并清空指令队列
 export function drainCommands(): GameCommand[] {
@@ -131,14 +163,35 @@ export function drainCommands(): GameCommand[] {
 
 export function robotMoveForward() {
   commandQueue.push('move_forward')
+  if (!planningLevel) return
+  const result = applyCommand(planningRobot, 'move_forward', planningLevel)
+  if (!result.collision) planningRobot = result.robot
 }
 
 export function robotTurnLeft() {
   commandQueue.push('turn_left')
+  planningRobot = { ...planningRobot, direction: rotateDirection(planningRobot.direction, 'left') }
 }
 
 export function robotTurnRight() {
   commandQueue.push('turn_right')
+  planningRobot = { ...planningRobot, direction: rotateDirection(planningRobot.direction, 'right') }
+}
+
+export function robotSense(): SenseResult {
+  if (!planningLevel) return 'empty'
+
+  const cell = getForwardCell(planningRobot)
+  if (cell.x < 0 || cell.x >= planningLevel.gridSize || cell.y < 0 || cell.y >= planningLevel.gridSize) {
+    return 'wall'
+  }
+  if (planningLevel.walls?.some(w => w.x === cell.x && w.y === cell.y)) return 'wall'
+  if (planningLevel.doors?.some(d => d.x === cell.x && d.y === cell.y && !d.open)) return 'door'
+  if (isSameCell(planningLevel.target, cell.x, cell.y)) return 'target'
+  if (planningLevel.collectibles?.some(c => c.x === cell.x && c.y === cell.y)) return 'collectible'
+  if (planningLevel.switches?.some(s => s.x === cell.x && s.y === cell.y)) return 'switch'
+  if (planningLevel.teleporters?.some(t => t.x === cell.x && t.y === cell.y)) return 'teleporter'
+  return 'empty'
 }
 
 // 指令执行结果

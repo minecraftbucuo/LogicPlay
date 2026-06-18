@@ -59,6 +59,22 @@ function GameCanvas({
       ctx.fillRect(wall.x * cellSize + 2, wall.y * cellSize + 2, cellSize - 4, cellSize - 4)
     }
 
+    // 画神秘方块（实际可能是墙或空气）
+    for (const cell of level.mysteryCells ?? []) {
+      const x = cell.x * cellSize + 2
+      const y = cell.y * cellSize + 2
+      ctx.fillStyle = '#34495e'
+      ctx.fillRect(x, y, cellSize - 4, cellSize - 4)
+      ctx.strokeStyle = '#8e44ad'
+      ctx.lineWidth = 3
+      ctx.strokeRect(x + 3, y + 3, cellSize - 10, cellSize - 10)
+      ctx.fillStyle = '#f5f6fa'
+      ctx.font = `bold ${Math.floor(cellSize * 0.42)}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('?', cell.x * cellSize + cellSize / 2, cell.y * cellSize + cellSize / 2)
+    }
+
     // 画门（关闭的门画紫色，打开的门画半透明）
     for (const door of level.doors ?? []) {
       const isOpen = rt.openedDoors.has(door.id)
