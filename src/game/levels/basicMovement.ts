@@ -12,5 +12,6 @@ export const basicMovementLevel: LevelData = {
   gridSize: 5,
   start: { x: 0, y: 2, direction: 'right' },
   target: { x: 4, y: 2 },
-  starterCode: '# 让机器人向前移动一步\nrobot.move_forward()',
+  starterCode: '# 提示：机器人需要多次向前移动\nrobot.move_forward()\n# 继续补充代码，让机器人到达终点',
+  solutionCode: 'robot.move_forward()\nrobot.move_forward()\nrobot.move_forward()\nrobot.move_forward()',
 }

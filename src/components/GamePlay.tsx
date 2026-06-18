@@ -43,6 +43,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
+  const [solutionModalOpen, setSolutionModalOpen] = useState(false)
   const executingRef = useRef(false)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const outputRef = useRef<HTMLPreElement | null>(null)
@@ -65,6 +66,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setOutput('')
     setIntroDismissed(!nextLevel.intro)
     setWon(false)
+    setSolutionModalOpen(false)
   }, [levelId])
 
   useEffect(() => {
@@ -200,6 +202,19 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setOutput('')
     setIntroDismissed(!nextLevel.intro)
     setWon(false)
+    setSolutionModalOpen(false)
+  }
+
+  const handleShowSolution = () => {
+    if (!level.solutionCode || isIntroActive) return
+    setSolutionModalOpen(true)
+  }
+
+  const handleUseSolution = () => {
+    if (!level.solutionCode) return
+    setCode(level.solutionCode)
+    setSolutionModalOpen(false)
+    setOutput('已将标准答案复制到编辑器。你可以直接生成指令，也可以先阅读后再自己改写。')
   }
 
   return (
@@ -259,6 +274,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               重置关卡
             </button>
           </div>
+          {level.solutionCode && (
+            <button className="solution-btn" onClick={handleShowSolution} disabled={isIntroActive}>
+              显示标准答案
+            </button>
+          )}
           <div className="output-area">
             <div className="output-label">输出：</div>
             <pre ref={outputRef} className="output-content">{output}</pre>
@@ -303,6 +323,45 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               </button>
               <button className="run-btn primary-btn" onClick={() => setExpandedEditor(false)}>
                 完成编辑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {solutionModalOpen && level.solutionCode && (
+        <div className="editor-modal-backdrop">
+          <div className="solution-modal">
+            <div className="editor-modal-header">
+              <div>
+                <div className="level-kicker">REFERENCE SOLUTION</div>
+                <h2>标准答案</h2>
+              </div>
+              <button className="editor-modal-close" onClick={() => setSolutionModalOpen(false)}>
+                ×
+              </button>
+            </div>
+            <CodeMirror
+              className="code-editor solution-code-viewer"
+              value={level.solutionCode}
+              height="100%"
+              theme={oneDark}
+              extensions={[python()]}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: false,
+                highlightActiveLine: false,
+                bracketMatching: true,
+                autocompletion: false,
+              }}
+              editable={false}
+            />
+            <div className="editor-modal-actions">
+              <button className="run-btn secondary-btn" onClick={() => setSolutionModalOpen(false)}>
+                关闭
+              </button>
+              <button className="run-btn primary-btn" onClick={handleUseSolution}>
+                复制到编辑器
               </button>
             </div>
           </div>

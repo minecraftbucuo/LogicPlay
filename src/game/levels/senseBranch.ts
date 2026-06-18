@@ -27,5 +27,6 @@ export const senseBranchLevel: LevelData = {
   target: { x: 6, y: 0 },
   mysteryCells,
   createSessionLevel: createSenseBranchSession,
-  starterCode: "# 先走到神秘方块列前\nfor i in range(2):\n    robot.move_forward()\n\n# 逐行检查：前方是墙就换下一行，前方不是墙就穿过去\nfor row in range(7):\n    if robot.sense() == 'wall':\n        robot.turn_right()\n        robot.move_forward()\n        robot.turn_left()\n    else:\n        for step in range(4):\n            robot.move_forward()\n        robot.turn_right()\n        for step in range(6 - row):\n            robot.move_forward()\n        break",
+  starterCode: "# 提示：先走到神秘方块列前\nfor i in range(2):\n    robot.move_forward()\n\n# 提示：用 if 判断前方是不是墙\nif robot.sense() == 'wall':\n    robot.turn_right()\nelse:\n    robot.move_forward()",
+  solutionCode: "for i in range(2):\n    robot.move_forward()\n\nfor row in range(7):\n    if robot.sense() == 'wall':\n        robot.turn_right()\n        robot.move_forward()\n        robot.turn_left()\n    else:\n        for step in range(4):\n            robot.move_forward()\n        robot.turn_right()\n        for step in range(6 - row):\n            robot.move_forward()\n        break",
 }

@@ -17,5 +17,6 @@ export const basicDetourLevel: LevelData = {
     { x: 2, y: 2 },
     { x: 2, y: 3 },
   ],
-  starterCode: '# 绕过障碍物，到达绿色终点\nrobot.move_forward()\nrobot.turn_right()\nrobot.move_forward()\nrobot.turn_left()',
+  starterCode: '# 提示：转向只会改变方向，不会前进\nrobot.move_forward()\nrobot.turn_right()\n# 继续绕过障碍，到达终点',
+  solutionCode: 'robot.move_forward()\nrobot.turn_right()\nrobot.move_forward()\nrobot.move_forward()\nrobot.turn_left()\nrobot.move_forward()\nrobot.move_forward()\nrobot.turn_left()\nrobot.move_forward()\nrobot.move_forward()\nrobot.turn_right()\nrobot.move_forward()',
 }

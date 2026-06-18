@@ -97,6 +97,8 @@ export interface LevelData {
   checkWin?: (robot: RobotState, runtime: LevelRuntimeState, level: LevelData) => boolean
   // 初始代码模板（可选，给玩家提示）
   starterCode?: string
+  // 标准答案（可选，玩家点击按钮后显示）
+  solutionCode?: string
 }
 
 // 默认运行时状态

@@ -194,7 +194,7 @@ function GameCanvas({
       width={canvasSize}
       height={canvasSize}
       style={{
-        width: 'min(100%, 540px)',
+        width: 'min(100%, 620px)',
         height: 'auto',
         border: '2px solid #0f3460',
         borderRadius: '4px',

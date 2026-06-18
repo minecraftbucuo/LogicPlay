@@ -12,5 +12,6 @@ export const repeatForwardLevel: LevelData = {
   gridSize: 12,
   start: { x: 0, y: 6, direction: 'right' },
   target: { x: 11, y: 6 },
-  starterCode: '# 使用循环重复前进\nfor i in range(5):\n    robot.move_forward()',
+  starterCode: '# 提示：用 for 循环重复执行前进\nfor i in range(3):\n    robot.move_forward()\n# 修改循环次数，让机器人走到终点',
+  solutionCode: 'for i in range(11):\n    robot.move_forward()',
 }
