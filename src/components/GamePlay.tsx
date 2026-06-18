@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import CodeMirror from '@uiw/react-codemirror'
+import { python } from '@codemirror/lang-python'
+import { oneDark } from '@codemirror/theme-one-dark'
 import GameCanvas from './GameCanvas'
 import { loadPyodide, runPython } from '../sandbox/PyodideRunner'
 import {
@@ -33,6 +36,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [robot, setRobot] = useState<RobotState>(level.start)
   const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState())
   const [won, setWon] = useState(false)
+  const [expandedEditor, setExpandedEditor] = useState(false)
   const executingRef = useRef(false)
   const cancelRef = useRef(false)
 
@@ -165,12 +169,26 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       </div>
       <div className="game-layout">
         <div className="editor-panel game-card">
-          <div className="panel-title">代码控制台</div>
-          <textarea
-            className="code-input"
+          <div className="editor-toolbar">
+            <div className="panel-title">代码控制台</div>
+            <button className="editor-expand-btn" onClick={() => setExpandedEditor(true)}>
+              放大编辑
+            </button>
+          </div>
+          <CodeMirror
+            className="code-editor"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
-            spellCheck={false}
+            height="100%"
+            theme={oneDark}
+            extensions={[python()]}
+            basicSetup={{
+              lineNumbers: true,
+              foldGutter: true,
+              highlightActiveLine: true,
+              bracketMatching: true,
+              autocompletion: true,
+            }}
+            onChange={(value) => setCode(value)}
           />
           <div className="action-row">
             <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady}>
@@ -184,13 +202,51 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             <div className="output-label">输出：</div>
             <pre className="output-content">{output}</pre>
           </div>
-
         </div>
         <div className="canvas-panel game-card">
           <div className="panel-title">运行地图</div>
           <GameCanvas robot={robot} level={level} runtime={runtime} />
         </div>
       </div>
+
+      {expandedEditor && (
+        <div className="editor-modal-backdrop">
+          <div className="editor-modal">
+            <div className="editor-modal-header">
+              <div>
+                <div className="level-kicker">EXPANDED EDITOR</div>
+                <h2>放大编辑</h2>
+              </div>
+              <button className="editor-modal-close" onClick={() => setExpandedEditor(false)}>
+                ×
+              </button>
+            </div>
+            <CodeMirror
+              className="code-editor expanded-code-editor"
+              value={code}
+              height="100%"
+              theme={oneDark}
+              extensions={[python()]}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                highlightActiveLine: true,
+                bracketMatching: true,
+                autocompletion: true,
+              }}
+              onChange={(value) => setCode(value)}
+            />
+            <div className="editor-modal-actions">
+              <button className="run-btn secondary-btn" onClick={() => setExpandedEditor(false)}>
+                返回游戏
+              </button>
+              <button className="run-btn primary-btn" onClick={() => setExpandedEditor(false)}>
+                完成编辑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {won && (
         <div
