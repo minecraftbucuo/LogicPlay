@@ -1,10 +1,10 @@
 import { useRef, useEffect } from 'react'
-import { type RobotState, DIR_ANGLE, INITIAL_ROBOT, GRID_SIZE, CELL_SIZE, CANVAS_SIZE } from '../game/GameEngine'
+import { type RobotState, type LevelData, DIR_ANGLE, DEFAULT_LEVEL, GRID_SIZE, CELL_SIZE, CANVAS_SIZE } from '../game/GameEngine'
 
 // 画布样式常量
 const LINE_WIDTH = 1
 
-function GameCanvas({ robot = INITIAL_ROBOT }: { robot?: RobotState }) {
+function GameCanvas({ robot, level = DEFAULT_LEVEL }: { robot?: RobotState; level?: LevelData }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -14,12 +14,34 @@ function GameCanvas({ robot = INITIAL_ROBOT }: { robot?: RobotState }) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    const currentRobot = robot ?? level.start
+
     // 清空画布
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE)
 
     // 画背景
     ctx.fillStyle = '#16213e'
     ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE)
+
+    // 画障碍物（深红色方块）
+    for (const wall of level.walls) {
+      ctx.fillStyle = '#c0392b'
+      ctx.fillRect(wall.x * CELL_SIZE + 2, wall.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4)
+    }
+
+    // 画终点（绿色旗帜标记）
+    const tx = level.target.x * CELL_SIZE + CELL_SIZE / 2
+    const ty = level.target.y * CELL_SIZE + CELL_SIZE / 2
+    ctx.fillStyle = '#2ecc71'
+    ctx.beginPath()
+    ctx.arc(tx, ty, CELL_SIZE * 0.3, 0, Math.PI * 2)
+    ctx.fill()
+    // 画星号表示终点
+    ctx.fillStyle = '#16213e'
+    ctx.font = 'bold 20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('★', tx, ty)
 
     // 画网格线
     ctx.strokeStyle = '#0f3460'
@@ -40,8 +62,8 @@ function GameCanvas({ robot = INITIAL_ROBOT }: { robot?: RobotState }) {
     }
 
     // 画机器人
-    const cx = robot.x * CELL_SIZE + CELL_SIZE / 2
-    const cy = robot.y * CELL_SIZE + CELL_SIZE / 2
+    const cx = currentRobot.x * CELL_SIZE + CELL_SIZE / 2
+    const cy = currentRobot.y * CELL_SIZE + CELL_SIZE / 2
     const radius = CELL_SIZE * 0.35
 
     // 圆形身体
@@ -51,7 +73,7 @@ function GameCanvas({ robot = INITIAL_ROBOT }: { robot?: RobotState }) {
     ctx.fill()
 
     // 朝向箭头
-    const angle = DIR_ANGLE[robot.direction]
+    const angle = DIR_ANGLE[currentRobot.direction]
     const arrowLen = radius * 0.7
     const tipX = cx + Math.cos(angle) * arrowLen
     const tipY = cy + Math.sin(angle) * arrowLen
@@ -77,7 +99,7 @@ function GameCanvas({ robot = INITIAL_ROBOT }: { robot?: RobotState }) {
       tipY - headLen * Math.sin(angle + Math.PI / 6)
     )
     ctx.stroke()
-  }, [robot])
+  }, [robot, level])
 
   return (
     <canvas
