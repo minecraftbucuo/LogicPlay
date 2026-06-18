@@ -385,6 +385,22 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             </p>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={onBackToLevelSelect}
+                style={{
+                  minWidth: '150px',
+                  padding: '12px 22px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#dfffea',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                }}
+              >
+                返回关卡选择
+              </button>
               {nextLevel && (
                 <button
                   onClick={() => onSelectLevel(nextLevel.id)}
@@ -403,22 +419,6 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
                   下一关
                 </button>
               )}
-              <button
-                onClick={onBackToLevelSelect}
-                style={{
-                  minWidth: '150px',
-                  padding: '12px 22px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#dfffea',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                }}
-              >
-                返回关卡选择
-              </button>
             </div>
           </div>
         </div>
