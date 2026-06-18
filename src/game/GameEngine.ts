@@ -70,6 +70,11 @@ export interface LevelData {
   id: string
   name: string
   description?: string
+  intro?: {
+    title: string
+    story: string
+    actionLabel?: string
+  }
   gridSize: number
   start: RobotState
   // 以下全部可选，由关卡设计者按需使用

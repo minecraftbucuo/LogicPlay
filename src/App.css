@@ -260,6 +260,45 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.level-intro-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.level-intro-card {
+  width: min(560px, 100%);
+  padding: 34px;
+  background:
+    radial-gradient(circle at top, rgba(0, 212, 255, 0.18), transparent 46%),
+    linear-gradient(145deg, rgba(16, 27, 60, 0.98), rgba(7, 11, 28, 0.99));
+  border: 1px solid rgba(0, 212, 255, 0.32);
+  border-radius: 22px;
+  color: #dff7ff;
+  text-align: center;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52), 0 0 60px rgba(0, 212, 255, 0.14);
+}
+
+.level-intro-card h2 {
+  margin: 8px 0 14px;
+  color: #00d4ff;
+  font-size: 28px;
+  letter-spacing: 2px;
+}
+
+.level-intro-card p {
+  margin: 0 0 26px;
+  color: #b9d3e8;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
 .editor-modal-backdrop {
   position: fixed;
   inset: 0;

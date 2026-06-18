@@ -39,6 +39,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [commandIndex, setCommandIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(false)
   const [executionEnded, setExecutionEnded] = useState(false)
+  const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
   const executingRef = useRef(false)
@@ -58,6 +59,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setRuntime(createRuntimeState())
     setCode(level.starterCode ?? '')
     setOutput('')
+    setIntroDismissed(!level.intro)
     setWon(false)
   }, [levelId])
 
@@ -88,7 +90,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   }
 
   const hasPreparedCommands = pendingCommands.length > 0
-  const canStep = hasPreparedCommands && !executionEnded && commandIndex < pendingCommands.length
+  const isIntroActive = Boolean(level.intro && !introDismissed)
+  const canStep = hasPreparedCommands && !executionEnded && commandIndex < pendingCommands.length && !isIntroActive
 
   useEffect(() => {
     if (!isAutoPlaying || executionEnded || commandIndex >= pendingCommands.length) return
@@ -102,7 +105,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   }, [isAutoPlaying, executionEnded, commandIndex, pendingCommands.length, robot, runtime])
 
   const handleRun = async () => {
-    if (!pyodideReady || executingRef.current) return
+    if (!pyodideReady || executingRef.current || isIntroActive) return
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current)
     cancelRef.current = false
     executingRef.current = false
@@ -214,7 +217,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         <div className="editor-panel game-card">
           <div className="editor-toolbar">
             <div className="panel-title">代码控制台</div>
-            <button className="editor-expand-btn" onClick={() => setExpandedEditor(true)}>
+            <button className="editor-expand-btn" onClick={() => setExpandedEditor(true)} disabled={isIntroActive}>
               放大编辑
             </button>
           </div>
@@ -231,10 +234,11 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               bracketMatching: true,
               autocompletion: true,
             }}
+            editable={!isIntroActive}
             onChange={(value) => setCode(value)}
           />
           <div className="action-row step-action-row">
-            <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady}>
+            <button className="run-btn primary-btn" onClick={handleRun} disabled={!pyodideReady || isIntroActive}>
               {pyodideLoading ? '加载中...' : '生成指令'}
             </button>
             <button className="run-btn secondary-btn" onClick={executeNextCommand} disabled={!canStep || isAutoPlaying}>
@@ -293,6 +297,19 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
                 完成编辑
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isIntroActive && level.intro && (
+        <div className="level-intro-backdrop">
+          <div className="level-intro-card">
+            <div className="level-kicker">MISSION BRIEFING</div>
+            <h2>{level.intro.title}</h2>
+            <p>{level.intro.story}</p>
+            <button className="run-btn primary-btn" onClick={() => setIntroDismissed(true)}>
+              {level.intro.actionLabel ?? '开始任务'}
+            </button>
           </div>
         </div>
       )}
