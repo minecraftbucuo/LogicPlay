@@ -72,6 +72,27 @@
   justify-self: end;
   min-width: 180px;
   min-height: 38px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.level-next-btn {
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #2ecc71, #1f9e55);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(46, 204, 113, 0.22);
+  transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
+}
+
+.level-next-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 30px rgba(46, 204, 113, 0.3);
 }
 
 .level-back-btn {

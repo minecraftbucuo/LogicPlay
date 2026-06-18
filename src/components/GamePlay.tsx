@@ -11,7 +11,7 @@ import {
   type LevelRuntimeState,
 } from '../game/GameEngine'
 import { LEVELS, getFirstLevel, getLevelById, getLevelIndex, getNextLevel } from '../game/LevelRegistry'
-import { completeLevel } from '../game/ProgressStore'
+import { completeLevel, isLevelUnlocked, loadProgress, type GameProgress } from '../game/ProgressStore'
 
 interface GamePlayProps {
   levelId: string
@@ -24,6 +24,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const levelIndex = getLevelIndex(level.id)
   const levelNumber = levelIndex >= 0 ? levelIndex + 1 : 1
   const nextLevel = getNextLevel(level.id)
+  const [progress, setProgress] = useState<GameProgress>(() => loadProgress())
+  const canGoNext = nextLevel ? isLevelUnlocked(nextLevel.id, progress) : false
   const [code, setCode] = useState(level.starterCode ?? '')
   const [pyodideReady, setPyodideReady] = useState(false)
   const [pyodideLoading, setPyodideLoading] = useState(true)
@@ -119,7 +121,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         if (checkWin(currentRobot, currentRuntime)) {
           stopped = true
           executingRef.current = false
-          completeLevel(level.id)
+          const updatedProgress = completeLevel(level.id)
+          setProgress(updatedProgress)
           setWon(true)
           setOutput(prev => prev + '\n🎉 恭喜通关！')
         }
@@ -152,7 +155,13 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           <h1>{level.name}</h1>
           <div className="level-subtitle">{level.description}</div>
         </div>
-        <div className="level-header-slot" />
+        <div className="level-header-slot">
+          {nextLevel && canGoNext && (
+            <button className="level-next-btn" onClick={() => onSelectLevel(nextLevel.id)}>
+              下一关 →
+            </button>
+          )}
+        </div>
       </div>
       <div className="game-layout">
         <div className="editor-panel game-card">
