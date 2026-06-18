@@ -43,6 +43,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
+  const [hintModalOpen, setHintModalOpen] = useState(false)
   const [solutionModalOpen, setSolutionModalOpen] = useState(false)
   const executingRef = useRef(false)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,6 +67,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setOutput('')
     setIntroDismissed(!nextLevel.intro)
     setWon(false)
+    setHintModalOpen(false)
     setSolutionModalOpen(false)
   }, [levelId])
 
@@ -202,6 +204,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setOutput('')
     setIntroDismissed(!nextLevel.intro)
     setWon(false)
+    setHintModalOpen(false)
     setSolutionModalOpen(false)
   }
 
@@ -274,10 +277,19 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               重置关卡
             </button>
           </div>
-          {level.solutionCode && (
-            <button className="solution-btn" onClick={handleShowSolution} disabled={isIntroActive}>
-              显示标准答案
-            </button>
+          {(level.hint || level.solutionCode) && (
+            <div className="assist-action-row">
+              {level.hint && (
+                <button className="assist-btn hint-btn" onClick={() => setHintModalOpen(true)} disabled={isIntroActive}>
+                  提示说明
+                </button>
+              )}
+              {level.solutionCode && (
+                <button className="assist-btn solution-btn" onClick={handleShowSolution} disabled={isIntroActive}>
+                  显示标准答案
+                </button>
+              )}
+            </div>
           )}
           <div className="output-area">
             <div className="output-label">输出：</div>
@@ -362,6 +374,53 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               </button>
               <button className="run-btn primary-btn" onClick={handleUseSolution}>
                 复制到编辑器
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hintModalOpen && level.hint && (
+        <div className="editor-modal-backdrop">
+          <div className="hint-modal">
+            <div className="editor-modal-header">
+              <div>
+                <div className="level-kicker">MISSION HINT</div>
+                <h2>提示说明</h2>
+              </div>
+              <button className="editor-modal-close" onClick={() => setHintModalOpen(false)}>
+                ×
+              </button>
+            </div>
+            <div className="hint-modal-content">
+              <section>
+                <h3>过关目标</h3>
+                <p>{level.hint.goal}</p>
+              </section>
+              <section>
+                <h3>通关提示</h3>
+                <ul>
+                  {level.hint.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              </section>
+              <section>
+                <h3>命令说明</h3>
+                <div className="hint-api-list">
+                  {level.hint.api.map((item) => (
+                    <div className="hint-api-card" key={item.name}>
+                      <div className="hint-api-name">{item.name}</div>
+                      <div className="hint-api-desc">{item.description}</div>
+                      {item.returns && <div className="hint-api-return">返回：{item.returns}</div>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <div className="editor-modal-actions">
+              <button className="run-btn primary-btn" onClick={() => setHintModalOpen(false)}>
+                明白了
               </button>
             </div>
           </div>

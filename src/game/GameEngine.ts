@@ -71,11 +71,22 @@ export interface LevelRuntimeState {
   openedDoors: Set<string>      // 已打开的门 id
 }
 
+export interface LevelHint {
+  goal: string
+  tips: string[]
+  api: Array<{
+    name: string
+    description: string
+    returns?: string
+  }>
+}
+
 // 关卡数据：只有 id、name、gridSize、start 是必需的，其他全部可选
 export interface LevelData {
   id: string
   name: string
   description?: string
+  hint?: LevelHint
   intro?: {
     title: string
     story: string
