@@ -89,6 +89,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+  const getStepDelay = (mode: 'slow' | 'fast') => mode === 'slow' ? 300 : 20
+
   const handleRun = async (mode: 'slow' | 'fast') => {
     if (!pyodideReady || executingRef.current || isIntroActive) return
     const runToken = runTokenRef.current + 1
@@ -96,7 +98,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     executingRef.current = true
     setIsExecuting(true)
     setWon(false)
-    setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中...')
+    setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中，正在快速播放动画...')
 
     const testLevels = level.testCases?.length
       ? level.testCases.map(testCase => ({ name: testCase.name, level: createLevelFromTestCase(level, testCase) }))
@@ -132,7 +134,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       let passed = false
       for (let index = 0; index < commands.length; index += 1) {
         if (runTokenRef.current !== runToken) return
-        if (mode === 'slow') await wait(420)
+        await wait(getStepDelay(mode))
         if (runTokenRef.current !== runToken) return
 
         const command = commands[index]
