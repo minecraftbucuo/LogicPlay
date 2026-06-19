@@ -99,8 +99,15 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setRuntime(createRuntimeState())
     setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中...')
 
-    const { output: result, commands } = await runPython(code, level)
+    const { output: result, commands, error } = await runPython(code, level)
     if (runTokenRef.current !== runToken) return
+
+    if (error) {
+      setOutput(result)
+      setIsExecuting(false)
+      executingRef.current = false
+      return
+    }
 
     let currentRobot = { ...level.start }
     const currentRuntime = createRuntimeState()

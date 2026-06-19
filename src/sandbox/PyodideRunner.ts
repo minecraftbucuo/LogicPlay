@@ -81,8 +81,10 @@ robot = Robot()
   apiInjected = true
 }
 
+const LOOP_ITERATION_LIMIT = 1000
+
 // 执行 Python 代码，返回 { output, commands }
-export async function runPython(code: string, level: LevelData): Promise<{ output: string; commands: GameCommand[] }> {
+export async function runPython(code: string, level: LevelData): Promise<{ output: string; commands: GameCommand[]; error: boolean }> {
   if (!pyodide) throw new Error('Pyodide 未加载')
 
   await ensureApiInjected()
@@ -90,13 +92,51 @@ export async function runPython(code: string, level: LevelData): Promise<{ outpu
 
   try {
     const wrappedCode = `
+import ast
 import sys
 from io import StringIO
+
+class _LogicPlayLoopGuard:
+    def __init__(self, limit):
+        self.limit = limit
+        self.count = 0
+    def tick(self):
+        self.count += 1
+        if self.count > self.limit:
+            raise RuntimeError('循环执行次数超过 ${LOOP_ITERATION_LIMIT} 次，请检查是否写成了死循环')
+
+class _LogicPlayLoopGuardInjector(ast.NodeTransformer):
+    def _guarded_body(self, node):
+        guard_call = ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id='_logicplay_loop_guard', ctx=ast.Load()),
+                    attr='tick',
+                    ctx=ast.Load(),
+                ),
+                args=[],
+                keywords=[],
+            )
+        )
+        ast.copy_location(guard_call, node)
+        node.body.insert(0, guard_call)
+        return node
+    def visit_For(self, node):
+        self.generic_visit(node)
+        return self._guarded_body(node)
+    def visit_While(self, node):
+        self.generic_visit(node)
+        return self._guarded_body(node)
+
 _capture_stdout = sys.stdout
 sys.stdout = StringIO()
 _exec_error = None
+_logicplay_loop_guard = _LogicPlayLoopGuard(${LOOP_ITERATION_LIMIT})
 try:
-    exec(${JSON.stringify(code + '\n')})
+    _logicplay_tree = ast.parse(${JSON.stringify(code + '\n')})
+    _logicplay_tree = _LogicPlayLoopGuardInjector().visit(_logicplay_tree)
+    ast.fix_missing_locations(_logicplay_tree)
+    exec(compile(_logicplay_tree, '<logicplay-user-code>', 'exec'))
 except Exception as e:
     _exec_error = str(e)
 _capture_output = sys.stdout.getvalue()
@@ -104,10 +144,11 @@ sys.stdout = _capture_stdout
 _capture_output + ('错误: ' + _exec_error if _exec_error else '')
 `
     const result = await pyodide.runPythonAsync(wrappedCode)
+    const error = Boolean(pyodide.globals.get('_exec_error'))
     const commands = drainCommands()
-    return { output: String(result), commands }
+    return { output: String(result), commands, error }
   } catch (error) {
     const commands = drainCommands()
-    return { output: `错误: ${error}`, commands }
+    return { output: `错误: ${error}`, commands, error: true }
   }
 }
