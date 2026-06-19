@@ -3,6 +3,7 @@ import CodeMirror from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import GameCanvas from './GameCanvas'
+import { audioManager, type UISoundType } from '../audio/AudioManager'
 import { loadPyodide, runPython } from '../sandbox/PyodideRunner'
 import {
   applyCommand,
@@ -93,8 +94,14 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
   const getStepDelay = (mode: 'slow' | 'fast') => mode === 'slow' ? 300 : 20
 
+  const withSound = (type: UISoundType, action: () => void) => () => {
+    audioManager.play(type)
+    action()
+  }
+
   const handleStopExecution = () => {
     if (!isExecuting) return
+    audioManager.play('ui-stop')
     runTokenRef.current += 1
     executingRef.current = false
     setIsExecuting(false)
@@ -104,6 +111,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
   const handleRun = async (mode: 'slow' | 'fast') => {
     if (!pyodideReady || executingRef.current || isIntroActive) return
+    audioManager.play('ui-confirm')
     const runToken = runTokenRef.current + 1
     runTokenRef.current = runToken
     executingRef.current = true
@@ -221,6 +229,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   }
 
   const handleReset = () => {
+    audioManager.play('ui-click')
     const nextBaseLevel = getLevelById(levelId) ?? getFirstLevel()
     const nextLevel = nextBaseLevel.createSessionLevel?.() ?? nextBaseLevel
     setLevel(nextLevel)
@@ -240,11 +249,13 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
   const handleShowSolution = () => {
     if (!level.solutionCode || isIntroActive) return
+    audioManager.play('ui-click')
     setSolutionModalOpen(true)
   }
 
   const handleUseSolution = () => {
     if (!level.solutionCode) return
+    audioManager.play('ui-confirm')
     setCode(level.solutionCode)
     setSolutionModalOpen(false)
     setOutput('已将标准答案复制到编辑器。你可以直接执行，也可以先阅读后再自己改写。')
@@ -253,7 +264,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   return (
     <div className="app game-page">
       <div className="level-header">
-        <button className="level-back-btn" onClick={onBackToLevelSelect}>
+        <button className="level-back-btn" onClick={withSound('ui-back', onBackToLevelSelect)}>
           ← 返回关卡选择
         </button>
         <div className="level-title-block">
@@ -263,7 +274,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         </div>
         <div className="level-header-slot">
           {nextLevel && canGoNext && (
-            <button className="level-next-btn" onClick={() => onSelectLevel(nextLevel.id)}>
+            <button className="level-next-btn" onClick={withSound('ui-confirm', () => onSelectLevel(nextLevel.id))}>
               下一关 →
             </button>
           )}
@@ -273,7 +284,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         <div className="editor-panel game-card">
           <div className="editor-toolbar">
             <div className="panel-title">代码控制台</div>
-            <button className="editor-expand-btn" onClick={() => setExpandedEditor(true)} disabled={isIntroActive}>
+            <button className="editor-expand-btn" onClick={withSound('ui-click', () => setExpandedEditor(true))} disabled={isIntroActive}>
               放大编辑
             </button>
           </div>
@@ -315,7 +326,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           {(level.hint || level.solutionCode) && (
             <div className="assist-action-row">
               {level.hint && (
-                <button className="assist-btn hint-btn" onClick={() => setHintModalOpen(true)} disabled={isIntroActive}>
+                <button className="assist-btn hint-btn" onClick={withSound('ui-click', () => setHintModalOpen(true))} disabled={isIntroActive}>
                   提示说明
                 </button>
               )}
@@ -345,7 +356,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
                 <div className="level-kicker">EXPANDED EDITOR</div>
                 <h2>放大编辑</h2>
               </div>
-              <button className="editor-modal-close" onClick={() => setExpandedEditor(false)}>
+              <button className="editor-modal-close" onClick={withSound('ui-back', () => setExpandedEditor(false))}>
                 ×
               </button>
             </div>
@@ -365,10 +376,10 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               onChange={(value) => setCode(value)}
             />
             <div className="editor-modal-actions">
-              <button className="run-btn secondary-btn" onClick={() => setExpandedEditor(false)}>
+              <button className="run-btn secondary-btn" onClick={withSound('ui-back', () => setExpandedEditor(false))}>
                 返回游戏
               </button>
-              <button className="run-btn primary-btn" onClick={() => setExpandedEditor(false)}>
+              <button className="run-btn primary-btn" onClick={withSound('ui-confirm', () => setExpandedEditor(false))}>
                 完成编辑
               </button>
             </div>
@@ -384,7 +395,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
                 <div className="level-kicker">REFERENCE SOLUTION</div>
                 <h2>标准答案</h2>
               </div>
-              <button className="editor-modal-close" onClick={() => setSolutionModalOpen(false)}>
+              <button className="editor-modal-close" onClick={withSound('ui-back', () => setSolutionModalOpen(false))}>
                 ×
               </button>
             </div>
@@ -404,7 +415,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               editable={false}
             />
             <div className="editor-modal-actions">
-              <button className="run-btn secondary-btn" onClick={() => setSolutionModalOpen(false)}>
+              <button className="run-btn secondary-btn" onClick={withSound('ui-back', () => setSolutionModalOpen(false))}>
                 关闭
               </button>
               <button className="run-btn primary-btn" onClick={handleUseSolution}>
@@ -423,7 +434,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
                 <div className="level-kicker">MISSION HINT</div>
                 <h2>提示说明</h2>
               </div>
-              <button className="editor-modal-close" onClick={() => setHintModalOpen(false)}>
+              <button className="editor-modal-close" onClick={withSound('ui-back', () => setHintModalOpen(false))}>
                 ×
               </button>
             </div>
@@ -454,7 +465,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               </section>
             </div>
             <div className="editor-modal-actions">
-              <button className="run-btn primary-btn" onClick={() => setHintModalOpen(false)}>
+              <button className="run-btn primary-btn" onClick={withSound('ui-confirm', () => setHintModalOpen(false))}>
                 明白了
               </button>
             </div>
@@ -468,7 +479,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             <div className="level-kicker">MISSION BRIEFING</div>
             <h2>{level.intro.title}</h2>
             <p>{level.intro.story}</p>
-            <button className="run-btn primary-btn" onClick={() => setIntroDismissed(true)}>
+            <button className="run-btn primary-btn" onClick={withSound('ui-confirm', () => setIntroDismissed(true))}>
               {level.intro.actionLabel ?? '开始任务'}
             </button>
           </div>
@@ -500,7 +511,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             textAlign: 'center',
           }}>
             <button
-              onClick={() => setWon(false)}
+              onClick={withSound('ui-back', () => setWon(false))}
               style={{
                 position: 'absolute',
                 top: '14px',
@@ -547,7 +558,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
-                onClick={onBackToLevelSelect}
+                onClick={withSound('ui-back', onBackToLevelSelect)}
                 style={{
                   minWidth: '150px',
                   padding: '12px 22px',
@@ -564,7 +575,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
               </button>
               {nextLevel && (
                 <button
-                  onClick={() => onSelectLevel(nextLevel.id)}
+                  onClick={withSound('ui-confirm', () => onSelectLevel(nextLevel.id))}
                   style={{
                     minWidth: '150px',
                     padding: '12px 22px',

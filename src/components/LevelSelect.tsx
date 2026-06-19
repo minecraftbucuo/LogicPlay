@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { LEVELS } from '../game/LevelRegistry'
 import { isLevelCompleted, isLevelUnlocked, loadProgress } from '../game/ProgressStore'
+import { audioManager } from '../audio/AudioManager'
 
 interface LevelSelectProps {
   onBack: () => void
@@ -20,7 +21,10 @@ function LevelSelect({ onBack, onSelectLevel }: LevelSelectProps) {
     }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <button
-          onClick={onBack}
+          onClick={() => {
+            audioManager.play('ui-back')
+            onBack()
+          }}
           style={{
             background: 'transparent',
             border: '1px solid #334455',
@@ -61,7 +65,11 @@ function LevelSelect({ onBack, onSelectLevel }: LevelSelectProps) {
             return (
               <button
                 key={level.id}
-                onClick={() => unlocked && onSelectLevel(level.id)}
+                onClick={() => {
+                  if (!unlocked) return
+                  audioManager.play('ui-confirm')
+                  onSelectLevel(level.id)
+                }}
                 disabled={!unlocked}
                 style={{
                   textAlign: 'left',

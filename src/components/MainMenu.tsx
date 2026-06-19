@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import MenuBackground from './MenuBackground'
+import { audioManager } from '../audio/AudioManager'
 
 function MainMenu({ onStart }: { onStart: () => void }) {
   const [showAbout, setShowAbout] = useState(false)
@@ -49,7 +50,10 @@ function MainMenu({ onStart }: { onStart: () => void }) {
       {/* 按钮区域 */}
       <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
         <button
-          onClick={onStart}
+          onClick={() => {
+            audioManager.play('ui-confirm')
+            onStart()
+          }}
           style={{
             padding: '16px 64px',
             fontSize: '22px',
@@ -75,7 +79,10 @@ function MainMenu({ onStart }: { onStart: () => void }) {
           开始游戏
         </button>
         <button
-          onClick={() => setShowAbout(true)}
+          onClick={() => {
+            audioManager.play('ui-click')
+            setShowAbout(true)
+          }}
           style={{
             padding: '10px 32px',
             fontSize: '16px',
@@ -124,7 +131,10 @@ function MainMenu({ onStart }: { onStart: () => void }) {
             justifyContent: 'center',
             zIndex: 10,
           }}
-          onClick={() => setShowAbout(false)}
+          onClick={() => {
+            audioManager.play('ui-back')
+            setShowAbout(false)
+          }}
         >
           <div
             style={{
@@ -150,7 +160,10 @@ function MainMenu({ onStart }: { onStart: () => void }) {
               LogicPlay 是一款用 Python 控制机器人闯关的编程练习游戏。你会从最基础的移动开始，在一个个任务中逐步掌握循环、条件判断、函数封装和简单策略。
             </p>
             <button
-              onClick={() => setShowAbout(false)}
+              onClick={() => {
+                audioManager.play('ui-back')
+                setShowAbout(false)
+              }}
               style={{
                 marginTop: '28px',
                 padding: '10px 40px',
