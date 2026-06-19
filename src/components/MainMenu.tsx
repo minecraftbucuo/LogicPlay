@@ -146,7 +146,7 @@ function MainMenu({ onStart }: { onStart: () => void }) {
               border: '1px solid #1a1a4e',
               borderRadius: '16px',
               padding: '48px',
-              maxWidth: '520px',
+              maxWidth: '560px',
               width: '90%',
               boxShadow: '0 0 60px rgba(0, 212, 255, 0.08)',
             }}
@@ -161,9 +161,31 @@ function MainMenu({ onStart }: { onStart: () => void }) {
             }}>
               关于 LOGICPLAY
             </h2>
-            <p style={{ color: '#8899aa', lineHeight: '2', margin: 0, fontSize: '15px' }}>
+            <p style={{ color: '#8899aa', lineHeight: '2', margin: '0 0 20px 0', fontSize: '15px' }}>
               LogicPlay 是一款用 Python 控制机器人闯关的编程练习游戏。你会从最基础的移动开始，在一个个任务中逐步掌握循环、条件判断、函数封装和简单策略。
             </p>
+            <div style={{ borderTop: '1px solid #1a1a3e', paddingTop: '16px', marginBottom: '16px' }}>
+              <p style={{ color: '#667788', lineHeight: '2', margin: 0, fontSize: '14px' }}>
+                <span style={{ color: '#00d4ff' }}>版本</span>　v0.1.0 Alpha
+              </p>
+              <p style={{ color: '#667788', lineHeight: '2', margin: 0, fontSize: '14px' }}>
+                <span style={{ color: '#00d4ff' }}>作者</span>　minecraftbucuo
+              </p>
+              <p style={{ color: '#667788', lineHeight: '2', margin: 0, fontSize: '14px' }}>
+                <span style={{ color: '#00d4ff' }}>技术栈</span>　React + TypeScript + Vite
+              </p>
+            </div>
+            <div style={{ borderTop: '1px solid #1a1a3e', paddingTop: '16px' }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#00d4ff' }}>
+                未来规划
+              </p>
+              <ul style={{ color: '#556677', margin: 0, paddingLeft: '20px', fontSize: '13px', lineHeight: '2' }}>
+                <li>更多关卡与进阶概念（递归、排序、搜索）</li>
+                <li>关卡编辑器，创建并分享自定义关卡</li>
+                <li>多人对战模式</li>
+                <li>成就系统与全球排行榜</li>
+              </ul>
+            </div>
             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => {
