@@ -5,6 +5,9 @@ import path from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 部署时需要设置为仓库名，如 '/LogicPlay/'
+  // 本地开发时设为 '/' 即可
+  base: process.env.GITHUB_PAGES ? '/LogicPlay/' : '/',
   plugins: [
     react(),
     {
