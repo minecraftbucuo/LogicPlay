@@ -6,6 +6,7 @@ import GameCanvas from './GameCanvas'
 import { loadPyodide, runPython } from '../sandbox/PyodideRunner'
 import {
   applyCommand,
+  createLevelFromTestCase,
   createRuntimeState,
   defaultCheckWin,
   type RobotState,
@@ -80,8 +81,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       })
   }, [])
 
-  const checkWin = (robot: RobotState, runtime: LevelRuntimeState): boolean => {
-    return level.checkWin?.(robot, runtime, level) ?? defaultCheckWin(robot, runtime, level)
+  const checkWin = (robot: RobotState, runtime: LevelRuntimeState, activeLevel: LevelData): boolean => {
+    return activeLevel.checkWin?.(robot, runtime, activeLevel) ?? defaultCheckWin(robot, runtime, activeLevel)
   }
 
   const isIntroActive = Boolean(level.intro && !introDismissed)
@@ -95,77 +96,103 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     executingRef.current = true
     setIsExecuting(true)
     setWon(false)
-    setRobot(level.start)
-    setRuntime(createRuntimeState())
     setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中...')
 
-    const { output: result, commands, error } = await runPython(code, level)
-    if (runTokenRef.current !== runToken) return
+    const testLevels = level.testCases?.length
+      ? level.testCases.map(testCase => ({ name: testCase.name, level: createLevelFromTestCase(level, testCase) }))
+      : [{ name: level.name, level }]
 
-    if (error) {
-      setOutput(result)
-      setIsExecuting(false)
-      executingRef.current = false
-      return
-    }
+    let overallOutput = level.testCases?.length ? `共 ${testLevels.length} 个测试用例。` : ''
 
-    let currentRobot = { ...level.start }
-    const currentRuntime = createRuntimeState()
-    let nextOutput = `${result || '(无输出)'}\n已生成 ${commands.length} 条指令，${mode === 'slow' ? '开始慢速执行。' : '开始快速执行。'}`
-    setOutput(nextOutput)
+    for (let testIndex = 0; testIndex < testLevels.length; testIndex += 1) {
+      const activeTest = testLevels[testIndex]
+      const activeLevel = activeTest.level
+      const currentRuntime = createRuntimeState()
+      let currentRobot = { ...activeLevel.start }
+      setLevel(activeLevel)
+      setRobot(currentRobot)
+      setRuntime(currentRuntime)
 
-    for (let index = 0; index < commands.length; index += 1) {
+      const testTitle = level.testCases?.length ? `\n\n测试 ${testIndex + 1}/${testLevels.length}：${activeTest.name}` : ''
+      setOutput(`${overallOutput}${testTitle}\n生成指令中...`)
+
+      const { output: result, commands, error } = await runPython(code, activeLevel)
       if (runTokenRef.current !== runToken) return
-      if (mode === 'slow') await wait(420)
-      if (runTokenRef.current !== runToken) return
 
-      const command = commands[index]
-      const commandResult = applyCommand(currentRobot, command, level, currentRuntime)
-      nextOutput += `\n▶ 第 ${index + 1} 步：${command}`
-
-      if (commandResult.collision) {
-        setRobot(currentRobot)
-        setRuntime(currentRuntime)
-        setOutput(`${nextOutput}\n💥 撞墙了！机器人无法移动。`)
+      if (error) {
+        setOutput(`${overallOutput}${testTitle}\n${result}`)
         setIsExecuting(false)
         executingRef.current = false
         return
       }
 
-      currentRobot = { ...commandResult.robot }
-      setRobot(currentRobot)
-      setRuntime({
-        collected: new Set(currentRuntime.collected),
-        activatedSwitches: new Set(currentRuntime.activatedSwitches),
-        openedDoors: new Set(currentRuntime.openedDoors),
-      })
-
-      if (commandResult.collectedItemId) {
-        nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}`
-      }
-      if (commandResult.activatedSwitchId) {
-        nextOutput += `\n🔘 激活开关：${commandResult.activatedSwitchId}`
-      }
-      if (commandResult.teleported) {
-        nextOutput += '\n🌀 触发传送。'
-      }
-
+      let nextOutput = `${overallOutput}${testTitle}\n${result || '(无输出)'}\n已生成 ${commands.length} 条指令，${mode === 'slow' ? '开始慢速执行。' : '开始快速执行。'}`
       setOutput(nextOutput)
 
-      if (checkWin(currentRobot, currentRuntime)) {
-        const updatedProgress = completeLevel(level.id)
-        setProgress(updatedProgress)
-        setWon(true)
-        setOutput(`${nextOutput}\n🎉 恭喜通关！`)
+      let passed = false
+      for (let index = 0; index < commands.length; index += 1) {
+        if (runTokenRef.current !== runToken) return
+        if (mode === 'slow') await wait(420)
+        if (runTokenRef.current !== runToken) return
+
+        const command = commands[index]
+        const commandResult = applyCommand(currentRobot, command, activeLevel, currentRuntime)
+        nextOutput += `\n▶ 第 ${index + 1} 步：${command}`
+
+        if (commandResult.collision) {
+          setRobot(currentRobot)
+          setRuntime(currentRuntime)
+          setOutput(`${nextOutput}\n💥 测试 ${testIndex + 1} 撞墙失败。`)
+          setIsExecuting(false)
+          executingRef.current = false
+          return
+        }
+
+        currentRobot = { ...commandResult.robot }
+        setRobot(currentRobot)
+        setRuntime({
+          collected: new Set(currentRuntime.collected),
+          activatedSwitches: new Set(currentRuntime.activatedSwitches),
+          openedDoors: new Set(currentRuntime.openedDoors),
+        })
+
+        if (commandResult.collectedItemId) {
+          nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}`
+        }
+        if (commandResult.activatedSwitchId) {
+          nextOutput += `\n🔘 激活开关：${commandResult.activatedSwitchId}`
+        }
+        if (commandResult.teleported) {
+          nextOutput += '\n🌀 触发传送。'
+        }
+
+        setOutput(nextOutput)
+
+        if (checkWin(currentRobot, currentRuntime, activeLevel)) {
+          passed = true
+          nextOutput += level.testCases?.length ? `\n✅ 测试 ${testIndex + 1}/${testLevels.length} 通过。` : '\n🎉 恭喜通关！'
+          setOutput(nextOutput)
+          break
+        }
+      }
+
+      if (!passed) {
+        setRobot(currentRobot)
+        setRuntime(currentRuntime)
+        setOutput(`${nextOutput}\n指令执行完毕，但测试 ${testIndex + 1} 还没有到达终点。`)
         setIsExecuting(false)
         executingRef.current = false
         return
       }
+
+      overallOutput = nextOutput
     }
 
-    setRobot(currentRobot)
-    setRuntime(currentRuntime)
-    setOutput(`${nextOutput}\n指令执行完毕，但还没有通关。`)
+    setLevel(level)
+    const updatedProgress = completeLevel(level.id)
+    setProgress(updatedProgress)
+    setWon(true)
+    setOutput(level.testCases?.length ? `${overallOutput}\n\n🎉 所有测试通过，恭喜通关！` : overallOutput)
     setIsExecuting(false)
     executingRef.current = false
   }
@@ -176,6 +203,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setLevel(nextLevel)
     runTokenRef.current += 1
     executingRef.current = false
+    setIsExecuting(false)
     setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
     setCode(nextLevel.starterCode ?? '')

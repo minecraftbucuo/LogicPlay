@@ -81,6 +81,18 @@ export interface LevelHint {
   }>
 }
 
+export interface LevelTestCase {
+  name: string
+  start: RobotState
+  target: Cell
+  walls?: Cell[]
+  collectibles?: Collectible[]
+  switches?: Switch[]
+  doors?: Door[]
+  teleporters?: Teleporter[]
+  mysteryCells?: MysteryCell[]
+}
+
 // 关卡数据：只有 id、name、gridSize、start 是必需的，其他全部可选
 export interface LevelData {
   id: string
@@ -102,6 +114,7 @@ export interface LevelData {
   doors?: Door[]                   // 门
   teleporters?: Teleporter[]       // 传送点
   mysteryCells?: MysteryCell[]     // 神秘方块，实际可能是墙或空气
+  testCases?: LevelTestCase[]      // 多测试用例关卡
   // 每次进入关卡时生成本局关卡数据，可用于随机地图
   createSessionLevel?: () => LevelData
   // 通关条件：由关卡自定义。不提供则默认"到达终点"
@@ -118,6 +131,20 @@ export function createRuntimeState(): LevelRuntimeState {
     collected: new Set(),
     activatedSwitches: new Set(),
     openedDoors: new Set(),
+  }
+}
+
+export function createLevelFromTestCase(level: LevelData, testCase: LevelTestCase): LevelData {
+  return {
+    ...level,
+    start: testCase.start,
+    target: testCase.target,
+    walls: testCase.walls,
+    collectibles: testCase.collectibles,
+    switches: testCase.switches,
+    doors: testCase.doors,
+    teleporters: testCase.teleporters,
+    mysteryCells: testCase.mysteryCells,
   }
 }
 
