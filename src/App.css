@@ -552,6 +552,12 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.stop-btn {
+  background: linear-gradient(135deg, #ff5d5d, #c0392b);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(255, 93, 93, 0.24);
+}
+
 .output-area {
   width: 100%;
   flex: 0 0 132px;

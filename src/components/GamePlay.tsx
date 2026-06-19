@@ -37,6 +37,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [robot, setRobot] = useState<RobotState>(level.start)
   const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState())
   const [isExecuting, setIsExecuting] = useState(false)
+  const [executingMode, setExecutingMode] = useState<'slow' | 'fast' | null>(null)
   const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
   const [won, setWon] = useState(false)
   const [expandedEditor, setExpandedEditor] = useState(false)
@@ -53,6 +54,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     runTokenRef.current += 1
     executingRef.current = false
     setIsExecuting(false)
+    setExecutingMode(null)
     setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
     setCode(nextLevel.starterCode ?? '')
@@ -91,12 +93,22 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
   const getStepDelay = (mode: 'slow' | 'fast') => mode === 'slow' ? 300 : 20
 
+  const handleStopExecution = () => {
+    if (!isExecuting) return
+    runTokenRef.current += 1
+    executingRef.current = false
+    setIsExecuting(false)
+    setExecutingMode(null)
+    setOutput(prev => `${prev}\n⏹ 已停止执行。`)
+  }
+
   const handleRun = async (mode: 'slow' | 'fast') => {
     if (!pyodideReady || executingRef.current || isIntroActive) return
     const runToken = runTokenRef.current + 1
     runTokenRef.current = runToken
     executingRef.current = true
     setIsExecuting(true)
+    setExecutingMode(mode)
     setWon(false)
     setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中，正在快速播放动画...')
 
@@ -124,6 +136,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       if (error) {
         setOutput(`${overallOutput}${testTitle}\n${result}`)
         setIsExecuting(false)
+        setExecutingMode(null)
         executingRef.current = false
         return
       }
@@ -146,6 +159,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           setRuntime(currentRuntime)
           setOutput(`${nextOutput}\n💥 测试 ${testIndex + 1} 撞墙失败。`)
           setIsExecuting(false)
+          setExecutingMode(null)
           executingRef.current = false
           return
         }
@@ -183,6 +197,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         setRuntime(currentRuntime)
         setOutput(`${nextOutput}\n指令执行完毕，但测试 ${testIndex + 1} 还没有到达终点。`)
         setIsExecuting(false)
+        setExecutingMode(null)
         executingRef.current = false
         return
       }
@@ -196,6 +211,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setWon(true)
     setOutput(level.testCases?.length ? `${overallOutput}\n\n🎉 所有测试通过，恭喜通关！` : overallOutput)
     setIsExecuting(false)
+    setExecutingMode(null)
     executingRef.current = false
   }
 
@@ -206,6 +222,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     runTokenRef.current += 1
     executingRef.current = false
     setIsExecuting(false)
+    setExecutingMode(null)
     setRobot(nextLevel.start)
     setRuntime(createRuntimeState())
     setCode(nextLevel.starterCode ?? '')
@@ -272,11 +289,19 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
             onChange={(value) => setCode(value)}
           />
           <div className="action-row step-action-row">
-            <button className="run-btn primary-btn" onClick={() => handleRun('slow')} disabled={!pyodideReady || isIntroActive || isExecuting}>
-              {pyodideLoading ? '加载中...' : '执行'}
+            <button
+              className={`run-btn ${executingMode === 'slow' ? 'stop-btn' : 'primary-btn'}`}
+              onClick={executingMode === 'slow' ? handleStopExecution : () => handleRun('slow')}
+              disabled={!pyodideReady || isIntroActive || (isExecuting && executingMode !== 'slow')}
+            >
+              {executingMode === 'slow' ? '停止' : pyodideLoading ? '加载中...' : '执行'}
             </button>
-            <button className="run-btn secondary-btn" onClick={() => handleRun('fast')} disabled={!pyodideReady || isIntroActive || isExecuting}>
-              快速执行
+            <button
+              className={`run-btn ${executingMode === 'fast' ? 'stop-btn' : 'secondary-btn'}`}
+              onClick={executingMode === 'fast' ? handleStopExecution : () => handleRun('fast')}
+              disabled={!pyodideReady || isIntroActive || (isExecuting && executingMode !== 'fast')}
+            >
+              {executingMode === 'fast' ? '停止' : '快速执行'}
             </button>
             <button className="run-btn secondary-btn" onClick={handleReset}>
               重置关卡
