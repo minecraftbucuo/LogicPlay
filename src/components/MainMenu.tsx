@@ -43,7 +43,7 @@ function MainMenu({ onStart }: { onStart: () => void }) {
           letterSpacing: '6px',
           margin: 0,
         }}>
-          用 Python，控机器人
+          用 Python，控制机器人
         </p>
       </div>
 

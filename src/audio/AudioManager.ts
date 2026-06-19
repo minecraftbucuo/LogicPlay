@@ -11,6 +11,8 @@ const STORAGE_KEY = 'logicplay-audio-settings'
 const DEFAULT_SETTINGS = {
   muted: false,
   volume: 0.5,
+  bgmEnabled: true,
+  bgmVolume: 0.15,
 }
 
 const SOUND_SETTINGS: Record<SoundType, { frequency: number; duration: number; volume: number; endFrequency?: number; type?: OscillatorType }> = {
@@ -29,7 +31,9 @@ const SOUND_SETTINGS: Record<SoundType, { frequency: number; duration: number; v
   'test-fail': { frequency: 200, duration: 0.18, volume: 0.2, type: 'square' },
 }
 
-function loadSettings(): { muted: boolean; volume: number } {
+type AudioSettings = { muted: boolean; volume: number; bgmEnabled: boolean; bgmVolume: number }
+
+function loadSettings(): AudioSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
@@ -37,13 +41,15 @@ function loadSettings(): { muted: boolean; volume: number } {
       return {
         muted: typeof parsed.muted === 'boolean' ? parsed.muted : DEFAULT_SETTINGS.muted,
         volume: typeof parsed.volume === 'number' ? parsed.volume : DEFAULT_SETTINGS.volume,
+        bgmEnabled: typeof parsed.bgmEnabled === 'boolean' ? parsed.bgmEnabled : DEFAULT_SETTINGS.bgmEnabled,
+        bgmVolume: typeof parsed.bgmVolume === 'number' ? parsed.bgmVolume : DEFAULT_SETTINGS.bgmVolume,
       }
     }
   } catch { /* ignore */ }
   return { ...DEFAULT_SETTINGS }
 }
 
-function saveSettings(settings: { muted: boolean; volume: number }) {
+function saveSettings(settings: AudioSettings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
   } catch { /* ignore */ }
@@ -53,32 +59,96 @@ class AudioManager {
   private context: AudioContext | null = null
   private muted: boolean
   private volume: number
+  private bgmEnabled: boolean
+  private bgmVolume: number
+  private bgmAudio: HTMLAudioElement | null = null
+  private bgmStarted = false
 
   constructor() {
     const settings = loadSettings()
     this.muted = settings.muted
     this.volume = settings.volume
+    this.bgmEnabled = settings.bgmEnabled
+    this.bgmVolume = settings.bgmVolume
   }
 
-  get isMuted() {
-    return this.muted
-  }
-
-  get masterVolume() {
-    return this.volume
-  }
+  get isMuted() { return this.muted }
+  get masterVolume() { return this.volume }
+  get isBgmEnabled() { return this.bgmEnabled }
+  get bgmVolumeLevel() { return this.bgmVolume }
 
   setMuted(value: boolean) {
     this.muted = value
-    saveSettings({ muted: this.muted, volume: this.volume })
+    saveSettings({ muted: this.muted, volume: this.volume, bgmEnabled: this.bgmEnabled, bgmVolume: this.bgmVolume })
+    if (this.muted) {
+      this.stopBgm()
+    } else if (this.bgmEnabled) {
+      this.startBgm()
+    }
   }
 
   setVolume(value: number) {
     this.volume = Math.max(0, Math.min(1, value))
-    saveSettings({ muted: this.muted, volume: this.volume })
+    saveSettings({ muted: this.muted, volume: this.volume, bgmEnabled: this.bgmEnabled, bgmVolume: this.bgmVolume })
+  }
+
+  setBgmEnabled(value: boolean) {
+    this.bgmEnabled = value
+    saveSettings({ muted: this.muted, volume: this.volume, bgmEnabled: this.bgmEnabled, bgmVolume: this.bgmVolume })
+    if (!this.bgmEnabled) {
+      this.stopBgm()
+    } else {
+      this.startBgm()
+    }
+  }
+
+  setBgmVolume(value: number) {
+    this.bgmVolume = Math.max(0, Math.min(1, value))
+    saveSettings({ muted: this.muted, volume: this.volume, bgmEnabled: this.bgmEnabled, bgmVolume: this.bgmVolume })
+    if (this.bgmAudio) {
+      this.bgmAudio.volume = this.bgmVolume
+    }
+  }
+
+  startBgm() {
+    if (!this.bgmEnabled || this.muted) return
+    if (this.bgmStarted) return
+
+    this.bgmStarted = true
+
+    const audio = new Audio('/audio/bgm.mp3')
+    audio.loop = true
+    audio.volume = this.bgmVolume
+
+    audio.play().then(() => {
+      console.log('[Audio] BGM started')
+    }).catch((e) => {
+      console.warn('[Audio] BGM play failed:', e)
+      this.bgmStarted = false
+    })
+
+    this.bgmAudio = audio
+  }
+
+  // 注册全局点击监听，用户第一次点击页面时启动 BGM
+  initBgmOnUserInteraction() {
+    // BGM 在 play() 中自动启动，无需单独监听
+  }
+
+  stopBgm() {
+    if (!this.bgmAudio) return
+    this.bgmAudio.pause()
+    this.bgmAudio.src = ''
+    this.bgmAudio = null
+    this.bgmStarted = false
   }
 
   play(type: SoundType = 'ui-click') {
+    // 首次用户交互时启动 BGM（必须在用户手势上下文中调用 audio.play()）
+    if (!this.bgmStarted && this.bgmEnabled && !this.muted) {
+      this.startBgm()
+    }
+
     if (this.muted || this.volume === 0) return
 
     const context = this.getContext()
