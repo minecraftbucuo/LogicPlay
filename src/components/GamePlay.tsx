@@ -205,7 +205,12 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       overallOutput = nextOutput
     }
 
-    setLevel(level)
+    if (level.testCases?.length) {
+      const displayLevel = testLevels[0].level
+      setLevel(displayLevel)
+      setRobot(displayLevel.start)
+      setRuntime(createRuntimeState())
+    }
     const updatedProgress = completeLevel(level.id)
     setProgress(updatedProgress)
     setWon(true)
