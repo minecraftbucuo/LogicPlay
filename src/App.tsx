@@ -2,6 +2,7 @@ import { useState } from 'react'
 import MainMenu from './components/MainMenu'
 import LevelSelect from './components/LevelSelect'
 import GamePlay from './components/GamePlay'
+import AudioSettings from './components/AudioSettings'
 import { getFirstLevel } from './game/LevelRegistry'
 import './App.css'
 
@@ -16,25 +17,24 @@ function App() {
     setPage('game')
   }
 
-  if (page === 'menu') {
-    return <MainMenu onStart={() => setPage('level-select')} />
-  }
-
-  if (page === 'level-select') {
-    return (
-      <LevelSelect
-        onBack={() => setPage('menu')}
-        onSelectLevel={openLevel}
-      />
-    )
-  }
-
   return (
-    <GamePlay
-      levelId={selectedLevelId}
-      onBackToLevelSelect={() => setPage('level-select')}
-      onSelectLevel={openLevel}
-    />
+    <>
+      <AudioSettings />
+      {page === 'menu' && <MainMenu onStart={() => setPage('level-select')} />}
+      {page === 'level-select' && (
+        <LevelSelect
+          onBack={() => setPage('menu')}
+          onSelectLevel={openLevel}
+        />
+      )}
+      {page === 'game' && (
+        <GamePlay
+          levelId={selectedLevelId}
+          onBackToLevelSelect={() => setPage('level-select')}
+          onSelectLevel={openLevel}
+        />
+      )}
+    </>
   )
 }
 

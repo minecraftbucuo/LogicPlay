@@ -3,7 +3,7 @@ import CodeMirror from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import GameCanvas from './GameCanvas'
-import { audioManager, type UISoundType } from '../audio/AudioManager'
+import { audioManager, type UISoundType, type GameSoundType } from '../audio/AudioManager'
 import { loadPyodide, runPython } from '../sandbox/PyodideRunner'
 import {
   applyCommand,
@@ -163,6 +163,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
         nextOutput += `\n▶ 第 ${index + 1} 步：${command}`
 
         if (commandResult.collision) {
+          audioManager.play('collision')
           setRobot(currentRobot)
           setRuntime(currentRuntime)
           setOutput(`${nextOutput}\n💥 测试 ${testIndex + 1} 撞墙失败。`)
@@ -180,7 +181,14 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           openedDoors: new Set(currentRuntime.openedDoors),
         })
 
+        // 快速模式下跳过移动/转向音效，避免变成噪音
+        if (mode !== 'fast') {
+          const stepSound: GameSoundType = command === 'move_forward' ? 'robot-step' : 'robot-turn'
+          audioManager.play(stepSound)
+        }
+
         if (commandResult.collectedItemId) {
+          audioManager.play('collect')
           nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}`
         }
         if (commandResult.activatedSwitchId) {
@@ -194,6 +202,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
         if (checkWin(currentRobot, currentRuntime, activeLevel)) {
           passed = true
+          audioManager.play(level.testCases?.length ? 'test-pass' : 'success')
           nextOutput += level.testCases?.length ? `\n✅ 测试 ${testIndex + 1}/${testLevels.length} 通过。` : '\n🎉 恭喜通关！'
           setOutput(nextOutput)
           break
@@ -222,6 +231,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     const updatedProgress = completeLevel(level.id)
     setProgress(updatedProgress)
     setWon(true)
+    audioManager.play('success')
     setOutput(level.testCases?.length ? `${overallOutput}\n\n🎉 所有测试通过，恭喜通关！` : overallOutput)
     setIsExecuting(false)
     setExecutingMode(null)
