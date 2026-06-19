@@ -240,16 +240,30 @@ function MenuBackground() {
 
       // 朝向箭头
       const angle = DIR_ANGLE[robotRef.current.direction]
-      const arrowLen = radius * 0.8
+      const arrowLen = radius * 0.7
       const tipX = robotPx + Math.cos(angle) * arrowLen
       const tipY = robotPy + Math.sin(angle) * arrowLen
 
-      ctx.strokeStyle = '#0a0a1a'
+      ctx.strokeStyle = '#1a1a2e'
       ctx.lineWidth = 3
       ctx.lineCap = 'round'
       ctx.beginPath()
       ctx.moveTo(robotPx, robotPy)
       ctx.lineTo(tipX, tipY)
+      ctx.stroke()
+
+      const headLen = 8
+      ctx.beginPath()
+      ctx.moveTo(tipX, tipY)
+      ctx.lineTo(
+        tipX - headLen * Math.cos(angle - Math.PI / 6),
+        tipY - headLen * Math.sin(angle - Math.PI / 6)
+      )
+      ctx.moveTo(tipX, tipY)
+      ctx.lineTo(
+        tipX - headLen * Math.cos(angle + Math.PI / 6),
+        tipY - headLen * Math.sin(angle + Math.PI / 6)
+      )
       ctx.stroke()
 
       // 粒子
