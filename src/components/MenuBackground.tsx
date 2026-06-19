@@ -1,24 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { DIRECTIONS, DIR_ANGLE, type RobotState } from '../game/GameEngine'
 
-// 演示路径
-const DEMO_COMMANDS: Array<{ cmd: 'move_forward' | 'turn_left' | 'turn_right'; delay: number }> = [
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'turn_right', delay: 500 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'turn_right', delay: 500 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'turn_right', delay: 500 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'move_forward', delay: 800 },
-  { cmd: 'turn_right', delay: 500 },
-]
-
-const DEMO_START: RobotState = { x: 2, y: 2, direction: 'right' }
-const DEMO_TARGET = { x: 5, y: 5 }
+const ROBOT_START: RobotState = { x: 6, y: 4, direction: 'right' }
 
 // 粒子
 interface Particle {
@@ -33,7 +16,7 @@ interface Particle {
 
 function MenuBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const robotRef = useRef<RobotState>({ ...DEMO_START })
+  const robotRef = useRef<RobotState>({ ...ROBOT_START })
   const animFrameRef = useRef(0)
   const particlesRef = useRef<Particle[]>([])
 
@@ -65,12 +48,26 @@ function MenuBackground() {
     }
     recalcGrid()
 
-    let commandIndex = 0
     let lastTime = 0
     let waitUntil = 0
     let animProgress = 1
-    let fromPos = { x: DEMO_START.x, y: DEMO_START.y }
-    let toPos = { x: DEMO_START.x, y: DEMO_START.y }
+    let fromPos = { x: ROBOT_START.x, y: ROBOT_START.y }
+    let toPos = { x: ROBOT_START.x, y: ROBOT_START.y }
+
+    // 随机选择下一个动作
+    const pickNextAction = (robot: RobotState): { cmd: 'move_forward' | 'turn_left' | 'turn_right'; delay: number } => {
+      const dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
+      const dy = robot.direction === 'down' ? 1 : robot.direction === 'up' ? -1 : 0
+      const newX = robot.x + dx
+      const newY = robot.y + dy
+      const canMove = newX >= 0 && newX < gridCols && newY >= 0 && newY < gridRows
+
+      const roll = Math.random()
+      if (canMove && roll < 0.6) return { cmd: 'move_forward', delay: 600 + Math.random() * 400 }
+      const turnDir = Math.random() < 0.5 ? 'turn_left' : 'turn_right'
+      if (roll < 0.8 || !canMove) return { cmd: turnDir, delay: 350 + Math.random() * 200 }
+      return { cmd: 'move_forward', delay: 600 + Math.random() * 400 }
+    }
 
     // 初始化粒子
     const initParticles = () => {
@@ -108,10 +105,10 @@ function MenuBackground() {
       animFrameRef.current = requestAnimationFrame(draw)
       recalcGrid()
 
-      // 执行指令
-      if (animProgress >= 1 && time >= waitUntil && commandIndex < DEMO_COMMANDS.length) {
-        const { cmd, delay } = DEMO_COMMANDS[commandIndex]
+      // 执行随机动作
+      if (animProgress >= 1 && time >= waitUntil) {
         const robot = robotRef.current
+        const { cmd, delay } = pickNextAction(robot)
 
         if (cmd === 'move_forward') {
           const dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
@@ -133,17 +130,7 @@ function MenuBackground() {
           robotRef.current = { ...robot, direction: DIRECTIONS[(idx + 1) % 4] }
         }
 
-        commandIndex++
         waitUntil = time + delay
-      }
-
-      // 循环
-      if (commandIndex >= DEMO_COMMANDS.length && animProgress >= 1 && time >= waitUntil) {
-        robotRef.current = { ...DEMO_START }
-        fromPos = { x: DEMO_START.x, y: DEMO_START.y }
-        toPos = { x: DEMO_START.x, y: DEMO_START.y }
-        commandIndex = 0
-        waitUntil = time + 1500
       }
 
       // 更新动画进度
@@ -195,21 +182,6 @@ function MenuBackground() {
           ctx.fill()
         }
       }
-
-      // 终点脉冲
-      const pulse = Math.sin(time / 500) * 0.3 + 0.7
-      const targetPx = offsetX + DEMO_TARGET.x * cellSize + cellSize / 2
-      const targetPy = offsetY + DEMO_TARGET.y * cellSize + cellSize / 2
-      const targetGlow = ctx.createRadialGradient(targetPx, targetPy, 0, targetPx, targetPy, cellSize * 0.6)
-      targetGlow.addColorStop(0, `rgba(46, 204, 113, ${0.3 * pulse})`)
-      targetGlow.addColorStop(1, 'rgba(46, 204, 113, 0)')
-      ctx.fillStyle = targetGlow
-      ctx.fillRect(targetPx - cellSize, targetPy - cellSize, cellSize * 2, cellSize * 2)
-
-      ctx.fillStyle = `rgba(46, 204, 113, ${0.5 * pulse})`
-      ctx.beginPath()
-      ctx.arc(targetPx, targetPy, cellSize * 0.2, 0, Math.PI * 2)
-      ctx.fill()
 
       // 机器人
       const easeProgress = animProgress < 1 ? animProgress * (2 - animProgress) : 1
