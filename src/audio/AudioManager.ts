@@ -116,7 +116,8 @@ class AudioManager {
 
     this.bgmStarted = true
 
-    const audio = new Audio('/audio/bgm.mp3')
+    const base = import.meta.env.BASE_URL
+    const audio = new Audio(`${base}audio/bgm.mp3`)
     audio.loop = true
     audio.volume = this.bgmVolume
 

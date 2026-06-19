@@ -35,7 +35,8 @@ export async function loadPyodide(): Promise<void> {
         return
       }
       const script = document.createElement('script')
-      script.src = '/pyodide/pyodide.js'
+      const base = import.meta.env.BASE_URL
+      script.src = `${base}pyodide/pyodide.js`
       script.onload = () => resolve()
       script.onerror = () => reject(new Error('Pyodide 脚本加载失败'))
       document.head.appendChild(script)
@@ -43,8 +44,9 @@ export async function loadPyodide(): Promise<void> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const loadPyodideFn = (window as any).loadPyodide
+    const base = import.meta.env.BASE_URL
     pyodide = await loadPyodideFn({
-      indexURL: '/pyodide/',
+      indexURL: `${base}pyodide/`,
     })
   })()
 
