@@ -10,9 +10,9 @@ const STORAGE_KEY = 'logicplay-audio-settings'
 
 const DEFAULT_SETTINGS = {
   muted: false,
-  volume: 0.5,
+  volume: 0.8,
   bgmEnabled: true,
-  bgmVolume: 0.15,
+  bgmVolume: 0.04,
 }
 
 const SOUND_SETTINGS: Record<SoundType, { frequency: number; duration: number; volume: number; endFrequency?: number; type?: OscillatorType }> = {
