@@ -42,7 +42,7 @@ function MainMenu({ onStart }: { onStart: () => void }) {
           letterSpacing: '6px',
           margin: 0,
         }}>
-          边玩边学算法
+          用 Python，控机器人
         </p>
       </div>
 
@@ -109,7 +109,7 @@ function MainMenu({ onStart }: { onStart: () => void }) {
         letterSpacing: '2px',
         zIndex: 1,
       }}>
-        用代码控制机器人，通关算法挑战
+        用代码控制机器人，挑战编程关卡
       </div>
 
       {/* 关于弹窗 */}
@@ -146,17 +146,9 @@ function MainMenu({ onStart }: { onStart: () => void }) {
             }}>
               关于 LogicPlay
             </h2>
-            <p style={{ color: '#aabbcc', lineHeight: '1.8', margin: '0 0 16px 0' }}>
-              LogicPlay 是一款通过编写代码控制机器人通关的算法学习游戏。
+            <p style={{ color: '#aabbcc', lineHeight: '1.8', margin: 0 }}>
+              LogicPlay 是一款用 Python 控制机器人闯关的编程练习游戏。你会从最基础的移动开始，在一个个任务中逐步掌握循环、条件判断、函数封装和简单策略。
             </p>
-            <h3 style={{ color: '#00d4ff', fontSize: '18px', margin: '20px 0 10px 0' }}>玩法</h3>
-            <ul style={{ color: '#8899aa', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
-              <li>使用 Python 代码控制机器人移动</li>
-              <li><code style={{ color: '#00d4ff' }}>robot.move_forward()</code> 向前走一步</li>
-              <li><code style={{ color: '#00d4ff' }}>robot.turn_left()</code> 左转 90 度</li>
-              <li><code style={{ color: '#00d4ff' }}>robot.turn_right()</code> 右转 90 度</li>
-              <li>避开障碍物，到达终点即可通关</li>
-            </ul>
             <button
               onClick={() => setShowAbout(false)}
               style={{
