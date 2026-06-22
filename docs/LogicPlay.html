@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogicPlay - 用 Python 控制机器人闯关的编程练习游戏</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#050814;
+    --bg-1:#0a0f1f;
+    --bg-2:#0f1830;
+    --line:#1b2a4e;
+    --text:#e6ecff;
+    --text-dim:#8b97b8;
+    --text-mute:#5a6584;
+    --accent:#00e5ff;
+    --accent-2:#7c5cff;
+    --accent-3:#22d3ee;
+    --success:#34d399;
+    --warning:#fbbf24;
+    --danger:#f87171;
+    --glass:rgba(18,28,56,0.55);
+    --glass-border:rgba(120,180,255,0.15);
+    --glow:0 0 30px rgba(0,229,255,0.35);
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{scroll-behavior:smooth;}
+  body{
+    font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg-0);
+    color:var(--text);
+    line-height:1.7;
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,229,255,0.04) 1px,transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(ellipse at top,black 30%,transparent 80%);
+    -webkit-mask-image:radial-gradient(ellipse at top,black 30%,transparent 80%);
+    pointer-events:none;z-index:0;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;
+    background:
+      radial-gradient(ellipse 800px 600px at 20% 10%,rgba(124,92,255,0.18),transparent 60%),
+      radial-gradient(ellipse 700px 500px at 85% 20%,rgba(0,229,255,0.14),transparent 60%),
+      radial-gradient(ellipse 900px 700px at 50% 110%,rgba(34,211,238,0.10),transparent 60%);
+    pointer-events:none;z-index:0;
+  }
+
+  .noise{
+    position:fixed;inset:0;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.6  0 0 0 0 0.8  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity:.6;pointer-events:none;z-index:1;mix-blend-mode:overlay;
+  }
+
+  main{position:relative;z-index:2;}
+
+  /* Nav */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    padding:16px 48px;
+    display:flex;justify-content:space-between;align-items:center;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(5,8,20,0.7),rgba(5,8,20,0.35));
+    border-bottom:1px solid var(--glass-border);
+  }
+  .nav-logo{
+    font-family:"Orbitron",sans-serif;
+    font-weight:700;font-size:18px;letter-spacing:2px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .nav-logo .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 12px var(--accent);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  .nav-links{display:flex;gap:28px;font-size:14px;}
+  .nav-links a{color:var(--text-dim);text-decoration:none;transition:color .2s;position:relative;}
+  .nav-links a:hover{color:var(--accent);}
+  .nav-links a::after{
+    content:"";position:absolute;left:0;right:100%;bottom:-6px;height:2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    transition:right .3s ease;
+  }
+  .nav-links a:hover::after{right:0;}
+  .nav-tag{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;padding:6px 14px;
+    border:1px solid var(--glass-border);border-radius:4px;
+    color:var(--accent);background:rgba(0,229,255,0.06);
+  }
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.4);opacity:.6;}}
+
+  /* Hero */
+  .hero{
+    padding:80px 48px 100px;
+    max-width:1280px;margin:0 auto;
+    display:grid;grid-template-columns:1.1fr 1fr;gap:60px;
+    align-items:center;
+  }
+  .hero-left{animation:slideUp 1s ease .1s both;}
+  .hero-tag{
+    display:inline-flex;align-items:center;gap:10px;
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;letter-spacing:1px;
+    padding:8px 16px;border-radius:999px;
+    background:linear-gradient(90deg,rgba(0,229,255,0.1),rgba(124,92,255,0.1));
+    border:1px solid rgba(0,229,255,0.3);
+    color:var(--accent);margin-bottom:24px;
+  }
+  .hero-tag::before{
+    content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+  }
+  h1.hero-title{
+    font-family:"Orbitron","Noto Sans SC",sans-serif;
+    font-size:clamp(42px,6vw,72px);
+    font-weight:900;line-height:1.05;letter-spacing:-1px;
+    background:linear-gradient(135deg,#fff 0%,var(--accent) 50%,var(--accent-2) 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:20px;
+  }
+  .hero-sub{font-size:18px;color:var(--text-dim);margin-bottom:36px;max-width:540px;}
+  .hero-sub strong{color:var(--text);font-weight:500;}
+
+  .hero-stats{display:flex;gap:40px;margin-bottom:36px;}
+  .stat .num{
+    font-family:"Orbitron",sans-serif;font-size:32px;font-weight:700;
+    color:var(--accent);text-shadow:var(--glow);
+  }
+  .stat .label{font-size:12px;color:var(--text-mute);letter-spacing:1px;margin-top:4px;}
+
+  .hero-cta{display:flex;gap:16px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:14px 28px;border-radius:8px;
+    font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;
+    transition:all .25s;font-family:"Noto Sans SC",sans-serif;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#050814;font-weight:600;
+    box-shadow:0 10px 40px rgba(0,229,255,0.25);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 50px rgba(0,229,255,0.35);}
+  .btn-ghost{border:1px solid var(--glass-border);color:var(--text);background:var(--glass);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* Hero Right - Robot + Terminal */
+  .hero-right{position:relative;animation:slideUp 1s ease .3s both;}
+  .robot-card{
+    position:relative;
+    border:1px solid var(--glass-border);
+    background:linear-gradient(145deg,rgba(18,28,56,0.7),rgba(10,15,31,0.7));
+    border-radius:16px;padding:28px;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05);
+    overflow:hidden;
+  }
+  .robot-card::before{
+    content:"";position:absolute;top:-1px;left:20%;right:20%;height:1px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.6;
+  }
+  .robot-header{
+    display:flex;align-items:center;gap:10px;
+    font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--text-mute);
+    padding-bottom:18px;border-bottom:1px dashed var(--line);margin-bottom:22px;
+  }
+  .robot-header .leds{display:flex;gap:6px;}
+  .led{width:10px;height:10px;border-radius:50%;}
+  .led.r{background:#f87171;}.led.y{background:#fbbf24;}.led.g{background:#34d399;}
+
+  .robot-body{display:flex;flex-direction:column;align-items:center;gap:20px;padding:14px 0 8px;}
+
+  .robot-svg{width:160px;height:160px;filter:drop-shadow(0 0 24px rgba(0,229,255,0.45));animation:float 4s ease-in-out infinite;}
+  @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+
+  .bubble{
+    position:relative;
+    background:linear-gradient(135deg,rgba(0,229,255,0.1),rgba(124,92,255,0.08));
+    border:1px solid rgba(0,229,255,0.3);
+    border-radius:12px;padding:14px 18px;
+    font-size:13px;color:var(--text);max-width:100%;
+  }
+  .bubble::before{
+    content:"";position:absolute;top:-8px;left:36px;
+    width:14px;height:14px;
+    background:inherit;border:inherit;border-right:none;border-bottom:none;
+    transform:rotate(45deg);
+  }
+  .bubble span{color:var(--accent);font-family:"JetBrains Mono",monospace;}
+
+  .terminal{
+    margin-top:18px;width:100%;
+    background:#040811;border:1px solid var(--line);border-radius:10px;
+    font-family:"JetBrains Mono",monospace;font-size:12px;overflow:hidden;
+  }
+  .term-head{
+    padding:8px 14px;background:#0a1220;
+    display:flex;align-items:center;justify-content:space-between;
+    color:var(--text-mute);border-bottom:1px solid var(--line);
+  }
+  .term-body{padding:14px;line-height:1.8;color:#b6c4e6;min-height:120px;}
+  .term-line{opacity:0;animation:typeIn .3s forwards;}
+  .term-line:nth-child(1){animation-delay:.2s;}
+  .term-line:nth-child(2){animation-delay:.9s;}
+  .term-line:nth-child(3){animation-delay:1.8s;}
+  .term-line:nth-child(4){animation-delay:2.6s;}
+  .term-line:nth-child(5){animation-delay:3.2s;}
+  @keyframes typeIn{from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:none;}}
+  .term-prompt{color:var(--accent);}
+  .term-cmd{color:#a5f3fc;}
+  .term-out{color:#86efac;}
+  .term-info{color:#fcd34d;}
+  .cursor{display:inline-block;width:8px;height:16px;background:var(--accent);vertical-align:-3px;margin-left:2px;animation:blink 1s steps(2) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* Section Base */
+  section{max-width:1280px;margin:0 auto;padding:80px 48px;position:relative;}
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:48px;gap:24px;flex-wrap:wrap;}
+  .section-title{
+    font-family:"Orbitron","Noto Sans SC",sans-serif;
+    font-size:clamp(28px,3.5vw,40px);font-weight:700;letter-spacing:1px;
+    display:flex;align-items:center;gap:16px;
+  }
+  .section-title .idx{
+    font-family:"JetBrains Mono",monospace;font-size:14px;color:var(--accent);
+    padding:6px 12px;border:1px solid var(--accent);border-radius:6px;
+    background:rgba(0,229,255,0.08);letter-spacing:2px;
+  }
+  .section-desc{color:var(--text-dim);font-size:15px;max-width:520px;}
+
+  /* Idea Section */
+  .idea-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .card{
+    position:relative;
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:14px;padding:32px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:all .3s;overflow:hidden;
+  }
+  .card:hover{
+    border-color:rgba(0,229,255,0.35);transform:translateY(-3px);
+    box-shadow:0 20px 40px rgba(0,0,0,0.35),0 0 30px rgba(0,229,255,0.08);
+  }
+  .card .ico{
+    width:48px;height:48px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,rgba(0,229,255,0.15),rgba(124,92,255,0.15));
+    border:1px solid rgba(0,229,255,0.25);
+    margin-bottom:18px;color:var(--accent);font-size:22px;
+  }
+  .card h3{font-size:18px;margin-bottom:12px;color:var(--text);letter-spacing:.5px;}
+  .card p{color:var(--text-dim);font-size:14.5px;}
+  .card .corner{
+    position:absolute;right:18px;top:18px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--text-mute);letter-spacing:2px;
+  }
+  .card.full{grid-column:1/-1;}
+  .quote{
+    border-left:3px solid var(--accent);
+    padding:4px 0 4px 20px;margin-top:6px;
+    font-style:italic;color:#a5f3fc;
+  }
+
+  /* Users Section */
+  .users-layout{display:grid;grid-template-columns:1fr 1.2fr;gap:40px;}
+  .user-list{display:flex;flex-direction:column;gap:14px;}
+  .user-item{
+    display:flex;align-items:center;gap:16px;
+    padding:18px 22px;border-radius:10px;
+    background:var(--glass);border:1px solid var(--glass-border);
+    transition:all .2s;
+  }
+  .user-item:hover{border-color:rgba(124,92,255,0.4);background:rgba(124,92,255,0.06);}
+  .user-item .avatar{
+    width:44px;height:44px;border-radius:10px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:#050814;font-weight:700;flex-shrink:0;
+  }
+  .user-item .name{font-weight:500;font-size:15px;}
+  .user-item .role{font-size:12px;color:var(--text-mute);margin-top:2px;font-family:"JetBrains Mono",monospace;}
+
+  .scene-card{
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:12px;padding:24px;margin-bottom:14px;
+  }
+  .scene-card:last-child{margin-bottom:0;}
+  .scene-title{
+    display:flex;align-items:center;gap:12px;
+    font-size:15px;font-weight:600;margin-bottom:10px;color:var(--accent);
+  }
+  .scene-title .bar{width:4px;height:16px;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:2px;}
+  .scene-card p{font-size:14px;color:var(--text-dim);}
+
+  /* Value Section */
+  .value-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+  .value-card{
+    position:relative;padding:32px 24px;
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:14px;overflow:hidden;
+  }
+  .value-card::before{
+    content:"";position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));opacity:.7;
+  }
+  .value-card .big{
+    font-family:"Orbitron",sans-serif;font-size:42px;font-weight:900;line-height:1;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:12px;
+  }
+  .value-card h4{font-size:16px;margin-bottom:10px;}
+  .value-card p{font-size:14px;color:var(--text-dim);}
+
+  /* Levels Flow */
+  .flow-wrap{
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:16px;padding:40px;position:relative;overflow:hidden;
+  }
+  .flow-title{
+    font-family:"Orbitron",sans-serif;font-size:20px;font-weight:700;
+    letter-spacing:2px;margin-bottom:30px;
+    display:flex;align-items:center;gap:12px;color:var(--accent);
+  }
+  .flow-title .line{flex:1;height:1px;background:linear-gradient(90deg,var(--accent),transparent);}
+
+  .flow{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+  .flow-step{
+    position:relative;padding:20px 14px;
+    background:rgba(4,10,22,0.6);border:1px solid var(--line);border-radius:10px;
+    text-align:center;transition:all .3s;
+  }
+  .flow-step:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .flow-step .n{
+    font-family:"JetBrains Mono",monospace;font-size:11px;
+    color:var(--accent);letter-spacing:2px;margin-bottom:10px;
+  }
+  .flow-step .ico-big{font-size:28px;margin-bottom:10px;}
+  .flow-step h5{font-size:13px;margin-bottom:4px;}
+  .flow-step p{font-size:11px;color:var(--text-mute);}
+
+  /* Footer */
+  .demo-banner{
+    max-width:1280px;margin:0 auto 80px;
+    padding:40px 48px;
+    background:linear-gradient(135deg,rgba(0,229,255,0.1),rgba(124,92,255,0.08));
+    border:1px solid rgba(0,229,255,0.25);border-radius:16px;
+    display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  }
+  .demo-banner .t{font-family:"Orbitron",sans-serif;font-size:20px;font-weight:700;letter-spacing:1px;}
+  .demo-banner .s{color:var(--text-dim);font-size:14px;margin-top:4px;}
+
+  footer{
+    padding:30px 48px;text-align:center;
+    border-top:1px solid var(--glass-border);
+    color:var(--text-mute);font-size:12px;
+    font-family:"JetBrains Mono",monospace;letter-spacing:2px;
+  }
+  footer .brand{color:var(--accent);}
+  footer a{color:var(--accent);text-decoration:none;}
+  footer a:hover{text-decoration:underline;}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:all .8s cubic-bezier(.2,.7,.2,1);}
+  .reveal.on{opacity:1;transform:none;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px);}to{opacity:1;transform:none;}}
+
+  @media (max-width:960px){
+    .hero{grid-template-columns:1fr;padding:50px 24px 70px;gap:40px;}
+    .nav{padding:14px 24px;}.nav-links{display:none;}
+    section{padding:60px 24px;}
+    .idea-grid{grid-template-columns:1fr;}
+    .users-layout{grid-template-columns:1fr;gap:30px;}
+    .value-grid{grid-template-columns:1fr 1fr;}
+    .flow{grid-template-columns:repeat(3,1fr);}
+    .hero-stats{gap:24px;}.stat .num{font-size:26px;}
+    .demo-banner{margin:0 24px 60px;padding:28px;}
+  }
+  @media (max-width:600px){
+    .value-grid{grid-template-columns:1fr;}
+    .flow{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<main>
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-logo"><span class="dot"></span>LOGICPLAY</div>
+    <div class="nav-links">
+      <a href="#idea">创意介绍</a>
+      <a href="#users">目标用户</a>
+      <a href="#value">价值意义</a>
+      <a href="#levels">关卡设计</a>
+    </div>
+    <div class="nav-tag">// 生活娱乐赛道</div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <span class="hero-tag">TRAE AI CREATIVITY COMPETITION · 2026</span>
+      <h1 class="hero-title">LogicPlay<br/>Python 机器人闯关</h1>
+      <p class="hero-sub">
+        一款 <strong>纯前端编程练习游戏</strong>。在浏览器中编写 Python 代码，控制机器人在网格地图上移动、转向、感知环境。从基础移动到 <strong>for 循环</strong>、<strong>if 条件判断</strong>、<strong>函数封装</strong>，再到迷宫策略 —— 多关循序渐进，打开即玩。
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat"><div class="num">N+</div><div class="label">渐进式关卡</div></div>
+        <div class="stat"><div class="num">0</div><div class="label">后端依赖</div></div>
+        <div class="stat"><div class="num">∞</div><div class="label">学习可能性</div></div>
+      </div>
+
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#idea">查看项目详情 →</a>
+        <span class="btn btn-ghost" style="cursor:default;opacity:0.6;">🚧 开发中，敬请期待</span>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="robot-card">
+        <div class="robot-header">
+          <div class="leds"><span class="led r"></span><span class="led y"></span><span class="led g"></span></div>
+          <span>logic_play.py &nbsp;— &nbsp;session active</span>
+        </div>
+
+        <div class="robot-body">
+          <svg class="robot-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gBody" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#00e5ff"/>
+                <stop offset="100%" stop-color="#7c5cff"/>
+              </linearGradient>
+              <linearGradient id="gGrid" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0f1830"/>
+                <stop offset="100%" stop-color="#050814"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid background -->
+            <rect x="20" y="20" width="160" height="160" rx="12" fill="url(#gGrid)" stroke="#1b2a4e" stroke-width="1"/>
+            <line x1="60" y1="20" x2="60" y2="180" stroke="#1b2a4e" stroke-width="0.5"/>
+            <line x1="100" y1="20" x2="100" y2="180" stroke="#1b2a4e" stroke-width="0.5"/>
+            <line x1="140" y1="20" x2="140" y2="180" stroke="#1b2a4e" stroke-width="0.5"/>
+            <line x1="20" y1="60" x2="180" y2="60" stroke="#1b2a4e" stroke-width="0.5"/>
+            <line x1="20" y1="100" x2="180" y2="100" stroke="#1b2a4e" stroke-width="0.5"/>
+            <line x1="20" y1="140" x2="180" y2="140" stroke="#1b2a4e" stroke-width="0.5"/>
+            <!-- Wall -->
+            <rect x="96" y="56" width="8" height="48" rx="2" fill="#c0392b" opacity="0.8"/>
+            <!-- Target -->
+            <circle cx="160" cy="100" r="12" fill="#34d399" opacity="0.7"/>
+            <text x="160" y="105" text-anchor="middle" fill="#050814" font-size="14" font-weight="bold">★</text>
+            <!-- Robot -->
+            <circle cx="60" cy="100" r="16" fill="url(#gBody)"/>
+            <line x1="60" y1="100" x2="74" y2="100" stroke="#050814" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="74" y1="100" x2="70" y2="95" stroke="#050814" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="74" y1="100" x2="70" y2="105" stroke="#050814" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- Mystery cell -->
+            <rect x="93" y="116" width="14" height="14" rx="2" fill="#34495e" stroke="#8e44ad" stroke-width="1.5"/>
+            <text x="100" y="128" text-anchor="middle" fill="#f5f6fa" font-size="11" font-weight="bold">?</text>
+          </svg>
+
+          <div class="bubble">
+            编写 <span>Python</span> 代码，控制我到达绿色终点！
+          </div>
+        </div>
+
+        <div class="terminal">
+          <div class="term-head">
+            <span class="title">python_terminal</span>
+            <span>v0.1.0</span>
+          </div>
+          <div class="term-body">
+            <div class="term-line"><span class="term-prompt">>>> </span><span class="term-cmd">robot.move_forward()</span></div>
+            <div class="term-line"><span class="term-out">▶ 机器人前进一格</span></div>
+            <div class="term-line"><span class="term-prompt">>>> </span><span class="term-cmd">for i in range(4):</span></div>
+            <div class="term-line"><span class="term-prompt">... </span><span class="term-cmd">    robot.move_forward()</span></div>
+            <div class="term-line"><span class="term-out">▶ 循环执行 4 次前进</span></div>
+            <div class="term-line"><span class="term-info">🎉 恭喜通关！</span><span class="cursor"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IDEA -->
+  <section id="idea" class="reveal">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><span class="idx">01</span>创意介绍</div>
+        <p class="section-desc" style="margin-top:12px;">把编程概念变成可玩的游戏关卡，在闯关中自然掌握编程逻辑</p>
+      </div>
+    </div>
+
+    <div class="idea-grid">
+      <div class="card full">
+        <span class="corner">OVERVIEW</span>
+        <div class="ico">🎮</div>
+        <h3>LogicPlay 是什么？</h3>
+        <p>
+          LogicPlay 是一款纯前端的编程练习游戏。玩家在浏览器中编写 Python 代码，控制机器人在网格地图上移动、转向、感知环境，逐关完成挑战。关卡从基础移动开始，循序渐进地引入 for 循环、if 条件判断、函数封装，直到迷宫策略。每一关对应一个编程知识点，配合开场故事和提示说明，让玩家在解决具体问题的过程中建立"代码控制行为"的直觉。
+        </p>
+        <div class="quote">
+          "编程入门的最大障碍不是学不会，而是看不到 —— LogicPlay 让每一行代码都有即时反馈。"
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="corner">CORE</span>
+        <div class="ico">🎲</div>
+        <h3>神秘方块机制</h3>
+        <p>每次进入关卡随机生成通路，迫使玩家使用条件判断而非背诵固定路线，确保真正理解概念。</p>
+      </div>
+
+      <div class="card">
+        <span class="corner">TECH</span>
+        <div class="ico">🌐</div>
+        <h3>纯前端零后端</h3>
+        <p>基于 Pyodide 在浏览器内直接运行 Python，无需安装任何环境，打开链接即可游玩。</p>
+      </div>
+
+      <div class="card">
+        <span class="corner">DESIGN</span>
+        <div class="ico">📖</div>
+        <h3>叙事驱动关卡</h3>
+        <p>每关配有开场故事、提示说明和标准答案。将编程概念融入关卡叙事，学习不再枯燥。</p>
+      </div>
+
+      <div class="card">
+        <span class="corner">AI</span>
+        <div class="ico">🤖</div>
+        <h3>AI 协作开发</h3>
+        <p>项目全程使用 AI 辅助开发：快速生成数据结构与引擎代码，协助方案取舍与调试，显著提升开发效率。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- USERS -->
+  <section id="users" class="reveal">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><span class="idx">02</span>目标用户</div>
+        <p class="section-desc" style="margin-top:12px;">面向所有想学编程却不知从何下手的人</p>
+      </div>
+    </div>
+
+    <div class="users-layout">
+      <div class="user-list">
+        <div class="user-item">
+          <div class="avatar">01</div>
+          <div>
+            <div class="name">编程零基础学习者</div>
+            <div class="role">beginner_learner</div>
+          </div>
+        </div>
+        <div class="user-item">
+          <div class="avatar">02</div>
+          <div>
+            <div class="name">中小学信息学 / 编程课学生</div>
+            <div class="role">student_k12</div>
+          </div>
+        </div>
+        <div class="user-item">
+          <div class="avatar">03</div>
+          <div>
+            <div class="name">编程教育从业者</div>
+            <div class="role">educator</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="scene-card">
+          <div class="scene-title"><span class="bar"></span>使用场景</div>
+          <p>课后自主练习 —— 打开浏览器就能写代码闯关，无需配置环境，碎片时间也能学编程。</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-title"><span class="bar"></span>课堂教学辅助</div>
+          <p>老师可直接将关卡链接分享给学生，作为循环、条件判断等知识点的课堂练习素材。</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-title"><span class="bar"></span>编程兴趣启蒙</div>
+          <p>通过游戏化的闯关体验，让"写代码"从枯燥的刷题变成有趣的挑战，激发持续学习的动力。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE -->
+  <section id="value" class="reveal">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><span class="idx">03</span>价值意义</div>
+        <p class="section-desc" style="margin-top:12px;">让编程学习从"看不到"变成"玩得会"</p>
+      </div>
+    </div>
+
+    <div class="value-grid">
+      <div class="value-card">
+        <div class="big">01</div>
+        <h4>降低入门门槛</h4>
+        <p>无需安装环境，打开浏览器就能写 Python 并看到效果，消除"配环境"这道最常见的劝退关卡。</p>
+      </div>
+      <div class="value-card">
+        <div class="big">02</div>
+        <h4>建立编程直觉</h4>
+        <p>通过随机神秘方块、多地图迷宫等机制，确保玩家必须理解概念本身才能通关，而非记忆固定答案。</p>
+      </div>
+      <div class="value-card">
+        <div class="big">03</div>
+        <h4>让练习不再枯燥</h4>
+        <p>每一关有故事背景、明确目标、即时反馈，把"刷题"变成"闯关"，让学习过程充满成就感。</p>
+      </div>
+      <div class="value-card">
+        <div class="big">04</div>
+        <h4>AI 协作实践</h4>
+        <p>全程 AI 辅助开发，展示了 AI 在快速原型搭建、方案权衡和调试中的核心价值。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEVELS -->
+  <section id="levels" class="reveal">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><span class="idx">04</span>关卡设计</div>
+        <p class="section-desc" style="margin-top:12px;">循序渐进的关卡设计，从基础移动到迷宫策略</p>
+      </div>
+    </div>
+
+    <div class="flow-wrap">
+      <div class="flow-title">LEVEL PROGRESSION <span class="line"></span></div>
+      <div class="flow" style="grid-template-columns:repeat(5,1fr) 0.6fr;">
+        <div class="flow-step">
+          <div class="n">LEVEL 01</div>
+          <div class="ico-big">🚶</div>
+          <h5>基础移动</h5>
+          <p>move_forward()</p>
+        </div>
+        <div class="flow-step">
+          <div class="n">LEVEL 02</div>
+          <div class="ico-big">🔄</div>
+          <h5>绕过障碍</h5>
+          <p>turn_left / right</p>
+        </div>
+        <div class="flow-step">
+          <div class="n">LEVEL 03</div>
+          <div class="ico-big">🔁</div>
+          <h5>重复前进</h5>
+          <p>for 循环</p>
+        </div>
+        <div class="flow-step">
+          <div class="n">LEVEL 04</div>
+          <div class="ico-big">🔀</div>
+          <h5>判断前方</h5>
+          <p>if 条件分支</p>
+        </div>
+        <div class="flow-step">
+          <div class="n">LEVEL 05</div>
+          <div class="ico-big">📦</div>
+          <h5>封装动作</h5>
+          <p>def 函数</p>
+        </div>
+        <div class="flow-step" style="display:flex;flex-direction:column;align-items:center;justify-content:center;border-style:dashed;opacity:0.6;">
+          <div class="ico-big">···</div>
+          <h5>更多关卡</h5>
+          <p>持续更新中</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="demo-banner reveal">
+    <div>
+      <div class="t">LogicPlay · 开发中</div>
+      <div class="s">项目正在持续迭代中，更多关卡与功能即将推出，敬请期待。</div>
+    </div>
+    <span class="btn btn-ghost" style="cursor:default;opacity:0.6;">🚧 即将上线</span>
+  </div>
+</main>
+
+<footer>
+  <span class="brand">LOGICPLAY</span> &nbsp;·&nbsp; 作者：minecraftbucuo
+  <br/><br/>
+  TRAE AI CREATIVITY COMPETITION · 2026 · 生活娱乐赛道
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
