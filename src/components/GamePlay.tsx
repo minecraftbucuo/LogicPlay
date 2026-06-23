@@ -285,10 +285,19 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setOutput('已将标准答案复制到编辑器。你可以直接执行，也可以先阅读后再自己改写。')
   }
 
+  const handleBackToLevelSelect = () => {
+    // 停止正在运行的执行，避免返回后继续播放音效
+    runTokenRef.current += 1
+    executingRef.current = false
+    setIsExecuting(false)
+    setExecutingMode(null)
+    onBackToLevelSelect()
+  }
+
   return (
     <div className="app game-page">
       <div className="level-header">
-        <button className="level-back-btn" onClick={withSound('ui-back', onBackToLevelSelect)}>
+        <button className="level-back-btn" onClick={withSound('ui-back', handleBackToLevelSelect)}>
           ← 返回关卡选择
         </button>
         <div className="level-title-block">
