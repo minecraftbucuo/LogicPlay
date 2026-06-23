@@ -16,7 +16,7 @@ export interface RobotState {
   direction: Direction
 }
 
-export type GameCommand = 'move_forward' | 'turn_left' | 'turn_right'
+export type GameCommand = 'move_forward' | 'turn_left' | 'turn_right' | 'move_up' | 'move_down' | 'move_left' | 'move_right'
 export type SenseResult = 'wall' | 'empty' | 'target' | 'collectible' | 'switch' | 'door' | 'teleporter'
 
 // ====== 关卡数据结构（灵活可扩展）======
@@ -227,6 +227,35 @@ export function robotTurnRight() {
   planningRobot = { ...planningRobot, direction: rotateDirection(planningRobot.direction, 'right') }
 }
 
+// 直接朝指定方向移动一格（不改变机器人"逻辑朝向"，但渲染时会更新朝向）
+export function robotMoveUp() {
+  commandQueue.push('move_up')
+  if (!planningLevel) return
+  const result = applyCommand(planningRobot, 'move_up', planningLevel)
+  if (!result.collision) planningRobot = result.robot
+}
+
+export function robotMoveDown() {
+  commandQueue.push('move_down')
+  if (!planningLevel) return
+  const result = applyCommand(planningRobot, 'move_down', planningLevel)
+  if (!result.collision) planningRobot = result.robot
+}
+
+export function robotMoveLeft() {
+  commandQueue.push('move_left')
+  if (!planningLevel) return
+  const result = applyCommand(planningRobot, 'move_left', planningLevel)
+  if (!result.collision) planningRobot = result.robot
+}
+
+export function robotMoveRight() {
+  commandQueue.push('move_right')
+  if (!planningLevel) return
+  const result = applyCommand(planningRobot, 'move_right', planningLevel)
+  if (!result.collision) planningRobot = result.robot
+}
+
 export function robotSense(): SenseResult {
   if (!planningLevel) return 'empty'
 
@@ -261,94 +290,113 @@ export function applyCommand(
 ): CommandResult {
   const rt = runtime ?? createRuntimeState()
 
-  switch (cmd) {
-    case 'move_forward': {
-      const dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
-      const dy = robot.direction === 'down' ? 1 : robot.direction === 'up' ? -1 : 0
-      const newX = robot.x + dx
-      const newY = robot.y + dy
+  // 处理转向指令
+  if (cmd === 'turn_left') {
+    const idx = DIRECTIONS.indexOf(robot.direction)
+    return { robot: { ...robot, direction: DIRECTIONS[(idx + 3) % 4] }, collision: false }
+  }
+  if (cmd === 'turn_right') {
+    const idx = DIRECTIONS.indexOf(robot.direction)
+    return { robot: { ...robot, direction: DIRECTIONS[(idx + 1) % 4] }, collision: false }
+  }
 
-      // 碰撞检测：超出网格边界
-      if (newX < 0 || newX >= level.gridSize || newY < 0 || newY >= level.gridSize) {
-        return { robot, collision: true }
-      }
+  // 处理移动指令：move_forward 沿当前朝向，move_up/down/left/right 沿指定方向
+  let dx = 0
+  let dy = 0
+  let newDirection = robot.direction
+  if (cmd === 'move_forward') {
+    dx = robot.direction === 'right' ? 1 : robot.direction === 'left' ? -1 : 0
+    dy = robot.direction === 'down' ? 1 : robot.direction === 'up' ? -1 : 0
+  } else if (cmd === 'move_up') {
+    dy = -1
+    newDirection = 'up'
+  } else if (cmd === 'move_down') {
+    dy = 1
+    newDirection = 'down'
+  } else if (cmd === 'move_left') {
+    dx = -1
+    newDirection = 'left'
+  } else if (cmd === 'move_right') {
+    dx = 1
+    newDirection = 'right'
+  } else {
+    return { robot, collision: false }
+  }
 
-      // 碰撞检测：撞到障碍物
-      if (level.walls?.some(w => w.x === newX && w.y === newY)) {
-        return { robot, collision: true }
-      }
+  const newX = robot.x + dx
+  const newY = robot.y + dy
 
-      // 碰撞检测：撞到关闭的门
-      if (level.doors?.some(d => d.x === newX && d.y === newY && !rt.openedDoors.has(d.id))) {
-        return { robot, collision: true }
-      }
+  // 碰撞检测：超出网格边界
+  if (newX < 0 || newX >= level.gridSize || newY < 0 || newY >= level.gridSize) {
+    return { robot, collision: true }
+  }
 
-      // 贪吃蛇模式：蛇身碰撞检测
-      if (level.snakeMode && rt.snakeBody) {
-        // 先判断是否会吃到星星（吃到则蛇尾不前移，需检查整个蛇身）
-        const willEat = level.collectibles?.some(
-          c => c.x === newX && c.y === newY && !rt.collected.has(c.id)
-        ) ?? false
-        // 没吃到星星时蛇尾会前移让位，所以蛇尾位置可以进入
-        const bodyToCheck = willEat
-          ? rt.snakeBody
-          : rt.snakeBody.slice(0, -1) // 排除蛇尾
-        if (bodyToCheck.some(seg => seg.x === newX && seg.y === newY)) {
-          return { robot, collision: true }
-        }
-      }
+  // 碰撞检测：撞到障碍物
+  if (level.walls?.some(w => w.x === newX && w.y === newY)) {
+    return { robot, collision: true }
+  }
 
-      const result: CommandResult = { robot: { ...robot, x: newX, y: newY }, collision: false }
+  // 碰撞检测：撞到关闭的门
+  if (level.doors?.some(d => d.x === newX && d.y === newY && !rt.openedDoors.has(d.id))) {
+    return { robot, collision: true }
+  }
 
-      // 检查是否踩到收集品
-      const collectible = level.collectibles?.find(c => c.x === newX && c.y === newY && !rt.collected.has(c.id))
-      if (collectible) {
-        rt.collected.add(collectible.id)
-        result.collectedItemId = collectible.id
-      }
-
-      // 贪吃蛇模式：更新蛇身
-      if (level.snakeMode && rt.snakeBody) {
-        const newHead: Cell = { x: newX, y: newY }
-        if (collectible) {
-          // 吃到星星：蛇身增长（不删蛇尾）
-          rt.snakeBody = [newHead, ...rt.snakeBody]
-        } else {
-          // 没吃到：蛇尾前移
-          rt.snakeBody = [newHead, ...rt.snakeBody.slice(0, -1)]
-        }
-      }
-
-      // 检查是否踩到开关
-      const sw = level.switches?.find(s => s.x === newX && s.y === newY && !rt.activatedSwitches.has(s.id))
-      if (sw) {
-        rt.activatedSwitches.add(sw.id)
-        // 打开对应的门
-        rt.openedDoors.add(sw.targetDoorId)
-        result.activatedSwitchId = sw.id
-      }
-
-      // 检查是否踩到传送点
-      const teleporter = level.teleporters?.find(t => t.x === newX && t.y === newY)
-      if (teleporter) {
-        const pair = level.teleporters?.find(t => t.id === teleporter.pairId)
-        if (pair) {
-          result.robot = { ...result.robot, x: pair.x, y: pair.y }
-          result.teleported = true
-        }
-      }
-
-      return result
-    }
-    case 'turn_left': {
-      const idx = DIRECTIONS.indexOf(robot.direction)
-      return { robot: { ...robot, direction: DIRECTIONS[(idx + 3) % 4] }, collision: false }
-    }
-    case 'turn_right': {
-      const idx = DIRECTIONS.indexOf(robot.direction)
-      return { robot: { ...robot, direction: DIRECTIONS[(idx + 1) % 4] }, collision: false }
+  // 贪吃蛇模式：蛇身碰撞检测
+  if (level.snakeMode && rt.snakeBody) {
+    // 先判断是否会吃到星星（吃到则蛇尾不前移，需检查整个蛇身）
+    const willEat = level.collectibles?.some(
+      c => c.x === newX && c.y === newY && !rt.collected.has(c.id)
+    ) ?? false
+    // 没吃到星星时蛇尾会前移让位，所以蛇尾位置可以进入
+    const bodyToCheck = willEat
+      ? rt.snakeBody
+      : rt.snakeBody.slice(0, -1) // 排除蛇尾
+    if (bodyToCheck.some(seg => seg.x === newX && seg.y === newY)) {
+      return { robot, collision: true }
     }
   }
+
+  const result: CommandResult = { robot: { ...robot, x: newX, y: newY, direction: newDirection }, collision: false }
+
+  // 检查是否踩到收集品
+  const collectible = level.collectibles?.find(c => c.x === newX && c.y === newY && !rt.collected.has(c.id))
+  if (collectible) {
+    rt.collected.add(collectible.id)
+    result.collectedItemId = collectible.id
+  }
+
+  // 贪吃蛇模式：更新蛇身
+  if (level.snakeMode && rt.snakeBody) {
+    const newHead: Cell = { x: newX, y: newY }
+    if (collectible) {
+      // 吃到星星：蛇身增长（不删蛇尾）
+      rt.snakeBody = [newHead, ...rt.snakeBody]
+    } else {
+      // 没吃到：蛇尾前移
+      rt.snakeBody = [newHead, ...rt.snakeBody.slice(0, -1)]
+    }
+  }
+
+  // 检查是否踩到开关
+  const sw = level.switches?.find(s => s.x === newX && s.y === newY && !rt.activatedSwitches.has(s.id))
+  if (sw) {
+    rt.activatedSwitches.add(sw.id)
+    // 打开对应的门
+    rt.openedDoors.add(sw.targetDoorId)
+    result.activatedSwitchId = sw.id
+  }
+
+  // 检查是否踩到传送点
+  const teleporter = level.teleporters?.find(t => t.x === newX && t.y === newY)
+  if (teleporter) {
+    const pair = level.teleporters?.find(t => t.id === teleporter.pairId)
+    if (pair) {
+      result.robot = { ...result.robot, x: pair.x, y: pair.y }
+      result.teleported = true
+    }
+  }
+
+  return result
 }
 
 // 默认通关条件：到达终点

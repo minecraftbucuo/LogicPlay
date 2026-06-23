@@ -187,7 +187,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
         // 快速模式下跳过移动/转向音效，避免变成噪音
         if (mode !== 'fast') {
-          const stepSound: GameSoundType = command === 'move_forward' ? 'robot-step' : 'robot-turn'
+          const isMove = command === 'move_forward' || command === 'move_up' || command === 'move_down' || command === 'move_left' || command === 'move_right'
+          const stepSound: GameSoundType = isMove ? 'robot-step' : 'robot-turn'
           audioManager.play(stepSound)
         }
 

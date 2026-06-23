@@ -4,6 +4,10 @@ import {
   robotMoveForward,
   robotTurnLeft,
   robotTurnRight,
+  robotMoveUp,
+  robotMoveDown,
+  robotMoveLeft,
+  robotMoveRight,
   robotSense,
   startPlanning,
   drainCommands,
@@ -62,10 +66,14 @@ async function ensureApiInjected(): Promise<void> {
   win._robotMoveForward = robotMoveForward
   win._robotTurnLeft = robotTurnLeft
   win._robotTurnRight = robotTurnRight
+  win._robotMoveUp = robotMoveUp
+  win._robotMoveDown = robotMoveDown
+  win._robotMoveLeft = robotMoveLeft
+  win._robotMoveRight = robotMoveRight
   win._robotSense = robotSense
 
   await pyodide!.runPythonAsync(`
-from js import _robotMoveForward, _robotTurnLeft, _robotTurnRight, _robotSense
+from js import _robotMoveForward, _robotTurnLeft, _robotTurnRight, _robotMoveUp, _robotMoveDown, _robotMoveLeft, _robotMoveRight, _robotSense
 
 class Robot:
     def move_forward(self):
@@ -74,6 +82,14 @@ class Robot:
         _robotTurnLeft()
     def turn_right(self):
         _robotTurnRight()
+    def move_up(self):
+        _robotMoveUp()
+    def move_down(self):
+        _robotMoveDown()
+    def move_left(self):
+        _robotMoveLeft()
+    def move_right(self):
+        _robotMoveRight()
     def sense(self):
         return _robotSense()
 

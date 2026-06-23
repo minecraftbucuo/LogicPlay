@@ -7,6 +7,7 @@ import { functionReuseLevel } from './functionReuse'
 import { mazeStrategyLevel } from './mazeStrategy'
 import { randomHunterLevel } from './randomHunter'
 import { snakeLevel } from './snakeLevel'
+import { snakeOddLevel } from './snakeOddLevel'
 
 export const LEVELS: LevelData[] = [
   basicMovementLevel,
@@ -17,4 +18,5 @@ export const LEVELS: LevelData[] = [
   mazeStrategyLevel,
   randomHunterLevel,
   snakeLevel,
+  snakeOddLevel,
 ]
