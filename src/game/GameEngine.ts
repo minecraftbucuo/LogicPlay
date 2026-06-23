@@ -117,6 +117,8 @@ export interface LevelData {
   testCases?: LevelTestCase[]      // 多测试用例关卡
   // 每次进入关卡时生成本局关卡数据，可用于随机地图
   createSessionLevel?: () => LevelData
+  // 动态星星数量：收集到一颗后自动在随机空白格生成下一颗，收集满此数量通关
+  dynamicStarCount?: number
   // 通关条件：由关卡自定义。不提供则默认"到达终点"
   checkWin?: (robot: RobotState, runtime: LevelRuntimeState, level: LevelData) => boolean
   // 初始代码模板（可选，给玩家提示）
@@ -319,4 +321,40 @@ export function applyCommand(
 export function defaultCheckWin(robot: RobotState, _runtime: LevelRuntimeState, level: LevelData): boolean {
   if (!level.target) return false
   return robot.x === level.target.x && robot.y === level.target.y
+}
+
+// 动态星星 id 计数器
+let dynamicStarCounter = 0
+
+/**
+ * 在地图的随机空白格生成一颗新星星。
+ * 排除机器人当前位置、墙壁、以及未收集的星星所在格子。
+ */
+export function generateRandomStar(
+  level: LevelData,
+  robot: RobotState,
+  runtime: LevelRuntimeState
+): Collectible | null {
+  const occupied = new Set<string>()
+  occupied.add(`${robot.x},${robot.y}`)
+  level.walls?.forEach(w => occupied.add(`${w.x},${w.y}`))
+  level.collectibles?.forEach(c => {
+    if (!runtime.collected.has(c.id)) {
+      occupied.add(`${c.x},${c.y}`)
+    }
+  })
+
+  const emptyCells: Cell[] = []
+  for (let y = 0; y < level.gridSize; y += 1) {
+    for (let x = 0; x < level.gridSize; x += 1) {
+      if (!occupied.has(`${x},${y}`)) {
+        emptyCells.push({ x, y })
+      }
+    }
+  }
+  if (emptyCells.length === 0) return null
+
+  const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)]
+  dynamicStarCounter += 1
+  return { id: `dynamic-star-${dynamicStarCounter}`, x: cell.x, y: cell.y }
 }

@@ -5,6 +5,7 @@ import { repeatForwardLevel } from './repeatForward'
 import { senseBranchLevel } from './senseBranch'
 import { functionReuseLevel } from './functionReuse'
 import { mazeStrategyLevel } from './mazeStrategy'
+import { randomHunterLevel } from './randomHunter'
 
 export const LEVELS: LevelData[] = [
   basicMovementLevel,
@@ -13,4 +14,5 @@ export const LEVELS: LevelData[] = [
   senseBranchLevel,
   functionReuseLevel,
   mazeStrategyLevel,
+  randomHunterLevel,
 ]

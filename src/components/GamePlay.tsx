@@ -10,6 +10,7 @@ import {
   createLevelFromTestCase,
   createRuntimeState,
   defaultCheckWin,
+  generateRandomStar,
   type RobotState,
   type LevelData,
   type LevelRuntimeState,
@@ -120,11 +121,13 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setWon(false)
     setOutput(mode === 'slow' ? '执行中，正在播放动画...' : '快速执行中，正在快速播放动画...')
 
-    const testLevels = level.testCases?.length
-      ? level.testCases.map(testCase => ({ name: testCase.name, level: createLevelFromTestCase(level, testCase) }))
-      : [{ name: level.name, level }]
+    // 每次执行都从 baseLevel 重新生成 session level，避免上次执行残留的星星状态污染
+    const freshLevel = baseLevel.createSessionLevel?.() ?? baseLevel
+    const testLevels = freshLevel.testCases?.length
+      ? freshLevel.testCases.map(testCase => ({ name: testCase.name, level: createLevelFromTestCase(freshLevel, testCase) }))
+      : [{ name: freshLevel.name, level: { ...freshLevel, collectibles: freshLevel.collectibles?.map(c => ({ ...c })) ?? [] } }]
 
-    let overallOutput = level.testCases?.length ? `共 ${testLevels.length} 个测试用例。` : ''
+    let overallOutput = freshLevel.testCases?.length ? `共 ${testLevels.length} 个测试用例。` : ''
 
     for (let testIndex = 0; testIndex < testLevels.length; testIndex += 1) {
       const activeTest = testLevels[testIndex]
@@ -135,7 +138,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       setRobot(currentRobot)
       setRuntime(currentRuntime)
 
-      const testTitle = level.testCases?.length ? `\n\n测试 ${testIndex + 1}/${testLevels.length}：${activeTest.name}` : ''
+      const testTitle = freshLevel.testCases?.length ? `\n\n测试 ${testIndex + 1}/${testLevels.length}：${activeTest.name}` : ''
       setOutput(`${overallOutput}${testTitle}\n生成指令中...`)
 
       const { output: result, commands, error } = await runPython(code, activeLevel)
@@ -189,7 +192,16 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
         if (commandResult.collectedItemId) {
           audioManager.play('collect')
-          nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}`
+          nextOutput += `\n⭐ 收集到物品：${commandResult.collectedItemId}（已收集 ${currentRuntime.collected.size}/${activeLevel.dynamicStarCount ?? level.collectibles?.length ?? 0}）`
+
+          // 动态星星：收集后如果还未达标，在随机空白格生成新星星
+          if (activeLevel.dynamicStarCount && currentRuntime.collected.size < activeLevel.dynamicStarCount) {
+            const newStar = generateRandomStar(activeLevel, currentRobot, currentRuntime)
+            if (newStar) {
+              activeLevel.collectibles = [newStar]
+              setLevel({ ...activeLevel, collectibles: [newStar] })
+            }
+          }
         }
         if (commandResult.activatedSwitchId) {
           nextOutput += `\n🔘 激活开关：${commandResult.activatedSwitchId}`
@@ -202,8 +214,8 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
 
         if (checkWin(currentRobot, currentRuntime, activeLevel)) {
           passed = true
-          audioManager.play(level.testCases?.length ? 'test-pass' : 'success')
-          nextOutput += level.testCases?.length ? `\n✅ 测试 ${testIndex + 1}/${testLevels.length} 通过。` : '\n🎉 恭喜通关！'
+          audioManager.play(freshLevel.testCases?.length ? 'test-pass' : 'success')
+          nextOutput += freshLevel.testCases?.length ? `\n✅ 测试 ${testIndex + 1}/${testLevels.length} 通过。` : '\n🎉 恭喜通关！'
           setOutput(nextOutput)
           break
         }
@@ -222,17 +234,17 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       overallOutput = nextOutput
     }
 
-    if (level.testCases?.length) {
+    if (freshLevel.testCases?.length) {
       const displayLevel = testLevels[0].level
       setLevel(displayLevel)
       setRobot(displayLevel.start)
       setRuntime(createRuntimeState())
     }
-    const updatedProgress = completeLevel(level.id)
+    const updatedProgress = completeLevel(freshLevel.id)
     setProgress(updatedProgress)
     setWon(true)
     audioManager.play('success')
-    setOutput(level.testCases?.length ? `${overallOutput}\n\n🎉 所有测试通过，恭喜通关！` : overallOutput)
+    setOutput(freshLevel.testCases?.length ? `${overallOutput}\n\n🎉 所有测试通过，恭喜通关！` : overallOutput)
     setIsExecuting(false)
     setExecutingMode(null)
     executingRef.current = false
