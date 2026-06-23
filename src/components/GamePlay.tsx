@@ -37,7 +37,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
   const [pyodideLoading, setPyodideLoading] = useState(true)
   const [output, setOutput] = useState('')
   const [robot, setRobot] = useState<RobotState>(level.start)
-  const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState())
+  const [runtime, setRuntime] = useState<LevelRuntimeState>(() => createRuntimeState(level))
   const [isExecuting, setIsExecuting] = useState(false)
   const [executingMode, setExecutingMode] = useState<'slow' | 'fast' | null>(null)
   const [introDismissed, setIntroDismissed] = useState(() => !level.intro)
@@ -58,7 +58,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setIsExecuting(false)
     setExecutingMode(null)
     setRobot(nextLevel.start)
-    setRuntime(createRuntimeState())
+    setRuntime(createRuntimeState(nextLevel))
     setCode(nextLevel.starterCode ?? '')
     setOutput('')
     setIntroDismissed(!nextLevel.intro)
@@ -132,7 +132,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     for (let testIndex = 0; testIndex < testLevels.length; testIndex += 1) {
       const activeTest = testLevels[testIndex]
       const activeLevel = activeTest.level
-      const currentRuntime = createRuntimeState()
+      const currentRuntime = createRuntimeState(activeLevel)
       let currentRobot = { ...activeLevel.start }
       setLevel(activeLevel)
       setRobot(currentRobot)
@@ -182,6 +182,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
           collected: new Set(currentRuntime.collected),
           activatedSwitches: new Set(currentRuntime.activatedSwitches),
           openedDoors: new Set(currentRuntime.openedDoors),
+          snakeBody: currentRuntime.snakeBody?.map(seg => ({ ...seg })),
         })
 
         // 快速模式下跳过移动/转向音效，避免变成噪音
@@ -238,7 +239,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
       const displayLevel = testLevels[0].level
       setLevel(displayLevel)
       setRobot(displayLevel.start)
-      setRuntime(createRuntimeState())
+      setRuntime(createRuntimeState(displayLevel))
     }
     const updatedProgress = completeLevel(freshLevel.id)
     setProgress(updatedProgress)
@@ -260,7 +261,7 @@ function GamePlay({ levelId, onBackToLevelSelect, onSelectLevel }: GamePlayProps
     setIsExecuting(false)
     setExecutingMode(null)
     setRobot(nextLevel.start)
-    setRuntime(createRuntimeState())
+    setRuntime(createRuntimeState(nextLevel))
     setCode(nextLevel.starterCode ?? '')
     setOutput('')
     setIntroDismissed(!nextLevel.intro)

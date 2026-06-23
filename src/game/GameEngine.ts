@@ -69,6 +69,7 @@ export interface LevelRuntimeState {
   collected: Set<string>        // 已收集的物品 id
   activatedSwitches: Set<string> // 已激活的开关 id
   openedDoors: Set<string>      // 已打开的门 id
+  snakeBody?: Cell[]            // 蛇身队列，队首是蛇头。仅 snakeMode 关卡使用
 }
 
 export interface LevelHint {
@@ -119,6 +120,8 @@ export interface LevelData {
   createSessionLevel?: () => LevelData
   // 动态星星数量：收集到一颗后自动在随机空白格生成下一颗，收集满此数量通关
   dynamicStarCount?: number
+  // 贪吃蛇模式：机器人有蛇身，吃星星后变长，撞到自己则失败
+  snakeMode?: boolean
   // 通关条件：由关卡自定义。不提供则默认"到达终点"
   checkWin?: (robot: RobotState, runtime: LevelRuntimeState, level: LevelData) => boolean
   // 初始代码模板（可选，给玩家提示）
@@ -128,12 +131,16 @@ export interface LevelData {
 }
 
 // 默认运行时状态
-export function createRuntimeState(): LevelRuntimeState {
-  return {
+export function createRuntimeState(level?: LevelData): LevelRuntimeState {
+  const state: LevelRuntimeState = {
     collected: new Set(),
     activatedSwitches: new Set(),
     openedDoors: new Set(),
   }
+  if (level?.snakeMode) {
+    state.snakeBody = [{ x: level.start.x, y: level.start.y }]
+  }
+  return state
 }
 
 export function createLevelFromTestCase(level: LevelData, testCase: LevelTestCase): LevelData {
@@ -276,6 +283,21 @@ export function applyCommand(
         return { robot, collision: true }
       }
 
+      // 贪吃蛇模式：蛇身碰撞检测
+      if (level.snakeMode && rt.snakeBody) {
+        // 先判断是否会吃到星星（吃到则蛇尾不前移，需检查整个蛇身）
+        const willEat = level.collectibles?.some(
+          c => c.x === newX && c.y === newY && !rt.collected.has(c.id)
+        ) ?? false
+        // 没吃到星星时蛇尾会前移让位，所以蛇尾位置可以进入
+        const bodyToCheck = willEat
+          ? rt.snakeBody
+          : rt.snakeBody.slice(0, -1) // 排除蛇尾
+        if (bodyToCheck.some(seg => seg.x === newX && seg.y === newY)) {
+          return { robot, collision: true }
+        }
+      }
+
       const result: CommandResult = { robot: { ...robot, x: newX, y: newY }, collision: false }
 
       // 检查是否踩到收集品
@@ -283,6 +305,18 @@ export function applyCommand(
       if (collectible) {
         rt.collected.add(collectible.id)
         result.collectedItemId = collectible.id
+      }
+
+      // 贪吃蛇模式：更新蛇身
+      if (level.snakeMode && rt.snakeBody) {
+        const newHead: Cell = { x: newX, y: newY }
+        if (collectible) {
+          // 吃到星星：蛇身增长（不删蛇尾）
+          rt.snakeBody = [newHead, ...rt.snakeBody]
+        } else {
+          // 没吃到：蛇尾前移
+          rt.snakeBody = [newHead, ...rt.snakeBody.slice(0, -1)]
+        }
       }
 
       // 检查是否踩到开关
@@ -338,6 +372,10 @@ export function generateRandomStar(
   const occupied = new Set<string>()
   occupied.add(`${robot.x},${robot.y}`)
   level.walls?.forEach(w => occupied.add(`${w.x},${w.y}`))
+  // 贪吃蛇模式：排除蛇身占据的格子
+  if (level.snakeMode && runtime.snakeBody) {
+    runtime.snakeBody.forEach(seg => occupied.add(`${seg.x},${seg.y}`))
+  }
   level.collectibles?.forEach(c => {
     if (!runtime.collected.has(c.id)) {
       occupied.add(`${c.x},${c.y}`)

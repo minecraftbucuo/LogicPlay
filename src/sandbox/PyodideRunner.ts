@@ -83,7 +83,7 @@ robot = Robot()
   apiInjected = true
 }
 
-const LOOP_ITERATION_LIMIT = 1000
+const LOOP_ITERATION_LIMIT = 2000
 
 // 执行 Python 代码，返回 { output, commands }
 export async function runPython(code: string, level: LevelData): Promise<{ output: string; commands: GameCommand[]; error: boolean }> {

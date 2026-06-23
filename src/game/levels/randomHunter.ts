@@ -1,5 +1,4 @@
 import type { LevelData, LevelRuntimeState, RobotState, Collectible } from '../GameEngine'
-import { generateRandomStar } from '../GameEngine'
 
 const GRID_SIZE = 5
 const STAR_TOTAL = 3

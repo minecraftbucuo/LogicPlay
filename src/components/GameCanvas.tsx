@@ -29,7 +29,7 @@ function GameCanvas({
 
     const cellSize = DEFAULT_CELL_SIZE
     const canvasSize = getCanvasSize(level)
-    const rt = runtime ?? createRuntimeState()
+    const rt = runtime ?? createRuntimeState(level)
 
     // 清空画布
     ctx.clearRect(0, 0, canvasSize, canvasSize)
@@ -147,7 +147,27 @@ function GameCanvas({
       ctx.fillText('★', tx, ty)
     }
 
-    // 画机器人
+    // 画蛇身（贪吃蛇模式）
+    if (level.snakeMode && rt.snakeBody && rt.snakeBody.length > 1) {
+      // 从尾到头画蛇身节（跳过蛇头，蛇头用机器人样式画）
+      for (let i = rt.snakeBody.length - 1; i >= 1; i -= 1) {
+        const seg = rt.snakeBody[i]
+        const sx = seg.x * cellSize + cellSize / 2
+        const sy = seg.y * cellSize + cellSize / 2
+        const segRadius = cellSize * 0.32
+        // 越靠近尾部颜色越深
+        const t = i / rt.snakeBody.length
+        const r = Math.floor(0 + t * 0)
+        const g = Math.floor(180 - t * 80)
+        const b = Math.floor(200 - t * 80)
+        ctx.fillStyle = `rgb(${r},${g},${b})`
+        ctx.beginPath()
+        ctx.arc(sx, sy, segRadius, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+
+    // 画机器人（蛇头）
     const cx = robot.x * cellSize + cellSize / 2
     const cy = robot.y * cellSize + cellSize / 2
     const radius = cellSize * 0.35
