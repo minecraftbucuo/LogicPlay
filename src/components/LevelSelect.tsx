@@ -49,7 +49,7 @@ function LevelSelect({ onBack, onSelectLevel }: LevelSelectProps) {
             选择关卡
           </h1>
           <p style={{ color: '#8899aa', margin: 0 }}>
-            关卡按顺序线性解锁。当前内容为框架占位，正式关卡会后续逐个设计。
+            关卡按顺序解锁，完成上一关即可进入下一关。
           </p>
         </div>
 

@@ -155,12 +155,18 @@ function GameCanvas({
         const sx = seg.x * cellSize + cellSize / 2
         const sy = seg.y * cellSize + cellSize / 2
         const segRadius = cellSize * 0.32
-        // 越靠近尾部颜色越深
-        const t = i / rt.snakeBody.length
-        const r = Math.floor(0 + t * 0)
-        const g = Math.floor(180 - t * 80)
-        const b = Math.floor(200 - t * 80)
-        ctx.fillStyle = `rgb(${r},${g},${b})`
+        const isTail = i === rt.snakeBody.length - 1
+        if (isTail) {
+          // 蛇尾用橙色，方便区分
+          ctx.fillStyle = '#ff8c1a'
+        } else {
+          // 蛇身：越靠近尾部颜色越深
+          const t = i / rt.snakeBody.length
+          const r = Math.floor(0 + t * 0)
+          const g = Math.floor(180 - t * 80)
+          const b = Math.floor(200 - t * 80)
+          ctx.fillStyle = `rgb(${r},${g},${b})`
+        }
         ctx.beginPath()
         ctx.arc(sx, sy, segRadius, 0, Math.PI * 2)
         ctx.fill()
